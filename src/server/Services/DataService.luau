@@ -21,6 +21,13 @@ local ActiveProfiles: { [Player]: Profile } = {}
 -- || Public API || --
 local DataService = {}
 
+--[[
+	Attempts to load the player's profile synchronously.
+	- Loads data if it isn't already loaded.
+	- Adds the player's UserId to the profile.
+	- Connects OnSessionEnd and OnSave events.
+	- Returns the loaded profile, or nil if loading fails.
+]]
 function DataService:LoadPlayer(Player: Player): Profile?
 	if ActiveProfiles[Player] then
 		warn(`{Player.Name}'s profile already loaded`)
@@ -53,6 +60,11 @@ function DataService:LoadPlayer(Player: Player): Profile?
 	return Profile
 end
 
+--[[
+	Promise-based async wrapper around LoadPlayer.
+	- Resolves with the Profile if successful.
+	- Rejects with an error string if loading fails.
+]]
 function DataService:LoadPlayerAsync(Player: Player): Promise.TypedPromise<Profile>
 	return Promise.new(function(resolve, reject)
 		local Profile = self:LoadPlayer(Player)
@@ -64,40 +76,32 @@ function DataService:LoadPlayerAsync(Player: Player): Promise.TypedPromise<Profi
 	end)
 end
 
+--[[
+	Retrieves the loaded profile for a given player.
+]]
 function DataService:GetProfile(Player: Player): Profile?
 	return ActiveProfiles[Player]
 end
 
+--[[
+	Updates a specific value in the player's profile data.
+	- Uses TablesUtilities:Replace with enforceType enabled by default.
+	- Returns true if the update succeeded, false otherwise.
+]]
 function DataService:UpdateValue(Key: string, Value: any, Player: Player): boolean?
 	local Profile = self:GetProfile(Player)
 	if not Profile or not Profile.Data then
 		return false
 	end
 
-	-- TODO: Improve later
-	local function recursiveReplace(tbl: { [any]: any }): boolean
-		for key, value in pairs(tbl) do
-			if key == Key then
-				if typeof(value) == typeof(Value) then
-					tbl[key] = Value
-					return true
-				else
-					warn(`Type mismatch for Key: {Key}\nExpected {typeof(value)}, got {typeof(Value)}`)
-					return false
-				end
-			elseif typeof(value) == "table" then
-				if recursiveReplace(value) then
-					return true
-				end
-			end
-		end
-		return false
-	end
-
-	local success = recursiveReplace(Profile.Data)
-	return success
+	local Success = TablesUtilities:Replace(Key, Value, Profile.Data, true)
+	return Success
 end
 
+--[[
+	Retrieves a value from the player's profile data.
+	- Searches recursively using TablesUtilities:Find.
+]]
 function DataService:GetValue(Key: string, Player: Player): any
 	local Profile = self:GetProfile(Player)
 	if not Profile or not Profile.Data then
@@ -107,6 +111,11 @@ function DataService:GetValue(Key: string, Player: Player): any
 	return TablesUtilities:Find(Key, Profile.Data)
 end
 
+--[[
+	Increments a numeric value in the player's data by the specified amount.
+	- Fails if the value does not exist or is not a number.
+	- Updates the value and returns the new number if successful.
+]]
 function DataService:IncrementValue(Key: string, Amount: number, Player: Player): number?
 	local Profile = self:GetProfile(Player)
 	if not Profile or not Profile.Data then
