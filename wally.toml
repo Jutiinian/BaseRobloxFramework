@@ -1,0 +1,13 @@
+[package]
+name = "justin/baserobloxframework"
+version = "0.1.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+
+[dependencies]
+promise = "howmanysmall/typed-promise@4.0.6"
+janitor = "howmanysmall/janitor@1.18.3"
+bytenet = "ffrostflame/bytenet@0.4.6"
+
+[server-dependencies]
+profilestore = "lm-loleris/profilestore@1.0.3"
