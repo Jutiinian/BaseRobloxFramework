@@ -9,6 +9,8 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Promise = require(ReplicatedStorage.Packages.Promise)
 local ProfileStore = require(ServerScriptService.ServerPackages.ProfileStore)
 
+local TablesUtilities = require(ReplicatedStorage.Shared.Utils.Tables)
+
 -- || Variables || --
 local DataProfile = ProfileStore.New("TestDataV.001", {})
 
@@ -72,6 +74,7 @@ function DataService:UpdateValue(Key: string, Value: any, Player: Player): boole
 		return false
 	end
 
+	-- TODO: Improve later
 	local function recursiveReplace(tbl: { [any]: any }): boolean
 		for key, value in pairs(tbl) do
 			if key == Key then
@@ -98,15 +101,30 @@ end
 function DataService:GetValue(Key: string, Player: Player): any
 	local Profile = self:GetProfile(Player)
 	if not Profile or not Profile.Data then
+		return nil
+	end
+
+	return TablesUtilities:Find(Key, Profile.Data)
+end
+
+function DataService:IncrementValue(Key: string, Amount: number, Player: Player): number?
+	local Profile = self:GetProfile(Player)
+	if not Profile or not Profile.Data then
 		return
 	end
 
-	-- TODO: Make "deep search"
-	if Profile then
-		return Profile.Data[Key]
+	local Current = self:GetValue(Key, Player)
+	if not Current or typeof(Current) ~= "number" then
+		return warn(`Failed to increment {Key} as no value exists or is not a number`)
 	end
 
-	return nil
+	Current += Amount
+	local Success = self:UpdateValue(Key, Current, Player)
+	if Success then
+		return Current
+	else
+		return warn(`Failed to increment {Key} due to update error`)
+	end
 end
 
 return DataService
