@@ -7,8 +7,13 @@
       "Shared": {
         "$path": "src/shared"
       },
+
       "Packages": {
         "$path": "Packages"
+      },
+
+      "UI": {
+        "$path": "src/ui"
       }
     },
 
@@ -16,6 +21,7 @@
       "Server": {
         "$path": "src/server"
       },
+      
       "ServerPackages": {
         "$path": "ServerPackages"
       }
