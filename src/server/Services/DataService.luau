@@ -1,7 +1,6 @@
---!strict
-
 -- || Services || --
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
@@ -12,9 +11,13 @@ local ProfileStore = require(ServerScriptService.ServerPackages.ProfileStore)
 local TablesUtilities = require(ReplicatedStorage.Shared.Utils.Tables)
 
 -- || Variables || --
-local DataProfile = ProfileStore.New("TestDataV.001", {})
-
 type Profile = ProfileStore.Profile<typeof({})>
+
+local PlayerStore = ProfileStore.New("TestDataV.001", {})
+if RunService:IsStudio() == true then
+	local MockData = PlayerStore.Mock
+	PlayerStore = MockData
+end
 
 local ActiveProfiles: { [Player]: Profile } = {}
 
@@ -34,7 +37,7 @@ function DataService:LoadPlayer(Player: Player): Profile?
 		return ActiveProfiles[Player]
 	end
 
-	local Profile = DataProfile:StartSessionAsync(`{Player.UserId}`, {
+	local Profile = PlayerStore:StartSessionAsync(`{Player.UserId}`, {
 		Cancel = function()
 			return (Player.Parent ~= Players)
 		end,
@@ -49,7 +52,7 @@ function DataService:LoadPlayer(Player: Player): Profile?
 	Profile:Reconcile()
 
 	Profile.OnSessionEnd:Connect(function()
-		Player:Kick("Data released.\nPlease rejoin!")
+		Player:Kick("Session closed.\nPlease rejoin!")
 	end)
 
 	Profile.OnSave:Connect(function()
@@ -77,6 +80,41 @@ function DataService:LoadPlayerAsync(Player: Player): Promise.TypedPromise<Profi
 end
 
 --[[
+	Forcefully save a player's profile data without closing session.
+	- If a specific Player is provided, only that player's data is saved.
+	- If no Player is provided, saves all active players' data.
+	- Generally used for more criticle moments (eg. Developer Product related purchases)
+]]
+function DataService:SaveData(Player: Player?)
+	local function SaveProfile(p: Player): ()
+		local Profile = ActiveProfiles[p]
+		if Profile then
+			Profile:Save()
+		end
+	end
+
+	if Player then
+		SaveProfile(Player)
+	else
+		for _, p in ipairs(Players:GetPlayers()) do
+			SaveProfile(p)
+		end
+	end
+end
+
+--[[
+	Forcefully end a player's data session.
+	- Data will automatically save.
+	- Player is automatically kicked.
+]]
+function DataService:EndSession(Player: Player)
+	local Profile = ActiveProfiles[Player]
+	if Profile then
+		Profile:EndSession()
+	end
+end
+
+--[[
 	Retrieves the loaded profile for a given player.
 ]]
 function DataService:GetProfile(Player: Player): Profile?
@@ -89,7 +127,7 @@ end
 	- Returns true if the update succeeded, false otherwise.
 ]]
 function DataService:UpdateValue(Key: string, Value: any, Player: Player): boolean?
-	local Profile = self:GetProfile(Player)
+	local Profile = ActiveProfiles[Player]
 	if not Profile or not Profile.Data then
 		return false
 	end
@@ -103,7 +141,7 @@ end
 	- Searches recursively using TablesUtilities:Find.
 ]]
 function DataService:GetValue(Key: string, Player: Player): any
-	local Profile = self:GetProfile(Player)
+	local Profile = ActiveProfiles[Player]
 	if not Profile or not Profile.Data then
 		return nil
 	end
@@ -117,7 +155,7 @@ end
 	- Updates the value and returns the new number if successful.
 ]]
 function DataService:IncrementValue(Key: string, Amount: number, Player: Player): number?
-	local Profile = self:GetProfile(Player)
+	local Profile = ActiveProfiles[Player]
 	if not Profile or not Profile.Data then
 		return
 	end
