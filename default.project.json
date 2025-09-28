@@ -18,8 +18,12 @@
     },
 
     "ServerScriptService": {
-      "Server": {
-        "$path": "src/server"
+      "Classes": {
+        "$path": "src/server/Classes"
+      },
+
+      "Services": {
+        "$path": "src/server/Services"
       },
       
       "ServerPackages": {
