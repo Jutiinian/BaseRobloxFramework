@@ -5,11 +5,16 @@
 
     "ReplicatedStorage": {
       "Shared": {
-        "$path": "src/shared"
+        "$path": "src/shared",
+        "Services": {
+          "$path": "src/services/Shared"
+        }
       },
+
       "UI": {
         "$path": "src/ui"
       },
+
       "Packages": {
         "$path": "Packages"
       }
@@ -19,9 +24,11 @@
       "Classes": {
         "$path": "src/server/Classes"
       },
+
       "Services": {
-        "$path": "src/server/Services"
+        "$path": "src/services/Server"
       },
+      
       "ServerPackages": {
         "$path": "ServerPackages"
       }
