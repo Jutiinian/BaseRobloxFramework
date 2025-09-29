@@ -43,27 +43,6 @@ function DataServiceServer.init(self: DataServiceServer)
 
 	Players.PlayerAdded:Connect(function(Player)
 		self:_PlayerAdded(Player)
-
-		Promise.delay(5)
-			:andThen(function()
-				self:GetValueChangedSignal(Player, "SimpleTest"):Connect(function(NewValue)
-					print("GetValueChangedSignal", "SimpleTest", NewValue)
-				end)
-
-				self:GetValueChangedSignal(Player, "NestedTest.TestValue"):Connect(function(MewValue)
-					print("GetValueChangedSignal", "NestedTest.TestValue", MewValue)
-				end)
-
-				self:GetChildChangedSignal(Player, "NestedTest"):Connect(function(Index, NewValue)
-					print("GetChildChangedSignal", "NestedTest", Index, NewValue)
-				end)
-
-				return Promise.delay(2)
-			end)
-			:andThen(function()
-				self:SetValue(Player, "SimpleTest", 50)
-				self:SetValue(Player, "NestedTest.TestValue", "EWWWWW")
-			end)
 	end)
 
 	Players.PlayerRemoving:Connect(function(Player)
