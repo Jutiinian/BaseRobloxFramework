@@ -126,7 +126,7 @@ end
 -- Signal Functions
 function DataProfile._FireChangedSignals<T>(self: DataProfile<T>, IndexPath: IndexPath): string
 	if type(IndexPath) == "string" then
-		self:_FireValueChangedSignal(IndexPath)
+		self:_FireValueChangedSignal(IndexPath, self:GetValue(IndexPath))
 		return IndexPath
 	end
 
@@ -137,16 +137,14 @@ function DataProfile._FireChangedSignals<T>(self: DataProfile<T>, IndexPath: Ind
 		Value = Value[Key]
 
 		if i > 1 then
-			self:_FireChildChangedSignal(indexString, Key, Value)
+			local ParentPath = indexString
+			indexString ..= "."
+			self:_FireChildChangedSignal(ParentPath, Key, Value)
 		end
 
 		indexString ..= Key
 
 		self:_FireValueChangedSignal(indexString, Value)
-
-		if i < #IndexPath - 1 then
-			indexString ..= "."
-		end
 	end
 
 	return indexString
