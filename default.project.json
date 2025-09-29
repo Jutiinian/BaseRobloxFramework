@@ -31,15 +31,20 @@
       
       "ServerPackages": {
         "$path": "ServerPackages"
+      },
+
+      "ServerInitializer": {
+        "$path": "src/init/Server.server.luau"
       }
     },
 
     "StarterPlayer": {
       "StarterPlayerScripts": {
-        "Client": {
-          "$path": "src/client"
+        "ClientInitializer": {
+          "$path": "src/init/Client.client.luau"
         }
       }
     }
+
   }
 }
