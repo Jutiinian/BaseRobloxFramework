@@ -24,9 +24,9 @@ end
 
 -- || Public API || --
 local DataServiceServer = {
-	_DataProfiles = {} :: { [Player]: DataProfile.DataProfile<Profile> },
+	_DataProfiles = {} :: { [Player]: DataProfile.DataProfile<DataTemplate.Data> },
 	_ActiveProfiles = {} :: { [Player]: Profile },
-	_WaitSignals = {} :: { [Player]: Signal.Signal<Profile> },
+	_WaitSignals = {} :: { [Player]: Signal.Signal<any> },
 }
 
 --[[
@@ -38,6 +38,9 @@ function DataServiceServer.init(self: DataServiceServer)
 	for _, Player in ipairs(Players:GetPlayers()) do
 		Promise.try(function()
 			self:_PlayerAdded(Player)
+		end):catch(function(Err)
+			warn(Err)
+			Player:Kick("Critical Game Error!\nPlease rejoin")
 		end)
 	end
 
@@ -110,8 +113,6 @@ function DataServiceServer._InitializePlayer(self: DataServiceServer, Player: Pl
 	self._DataProfiles[Player] = DataProfile.new(Data)
 	-- TODO: Fire to the client to update their data
 
-	print(self._DataProfiles[Player])
-
 	local WaitSignal = self._WaitSignals[Player]
 	if WaitSignal then
 		WaitSignal:Fire()
@@ -149,6 +150,29 @@ end
 ]]
 function DataServiceServer.GetProfile(self: DataServiceServer, Player: Player): Profile?
 	return self._ActiveProfiles[Player]
+end
+
+--[[
+	Waits for the player's data to be initialized and returns it.
+	- Returns immediately if the data is already available.
+]]
+function DataServiceServer.WaitForData(
+	self: DataServiceServer,
+	Player: Player
+): DataProfile.DataProfile<DataTemplate.Data>
+	local Data = self._DataProfiles[Player]
+	if Data then
+		return Data
+	end
+
+	local WaitSignal = self._WaitSignals[Player]
+	if not WaitSignal then
+		WaitSignal = Signal.new()
+		self._WaitSignals[Player] = WaitSignal
+	end
+
+	WaitSignal:Wait()
+	return self._DataProfiles[Player]
 end
 
 --[[
