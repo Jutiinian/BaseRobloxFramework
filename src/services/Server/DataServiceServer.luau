@@ -10,10 +10,12 @@ local ProfileStore = require(ServerScriptService.ServerPackages.ProfileStore)
 
 local TablesUtilities = require(ReplicatedStorage.Shared.Utils.Tables)
 
--- || Variables || --
-type Profile = ProfileStore.Profile<typeof({})>
+local DataTemplate = require(ReplicatedStorage.Shared.Services.DataService.DataTemplate)
 
-local PlayerStore = ProfileStore.New("TestDataV.001", {})
+-- || Variables || --
+type Profile = ProfileStore.Profile<DataTemplate.Data>
+
+local PlayerStore = ProfileStore.New("TestDataV.001", DataTemplate)
 if RunService:IsStudio() == true then
 	local MockData = PlayerStore.Mock
 	PlayerStore = MockData
