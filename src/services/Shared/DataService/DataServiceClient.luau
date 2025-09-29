@@ -6,7 +6,7 @@ local Packages = ReplicatedStorage.Packages
 
 local Signal = require(Packages.Signal)
 
-local Data = require(script.Parent.Data)
+local DataProfile = require(script.Parent.DataProfile)
 
 -- || Variables || --
 type Signal<T> = Signal.Signal<T>
