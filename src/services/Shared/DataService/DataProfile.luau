@@ -1,5 +1,5 @@
 --!nocheck
--- Got annoying having some things underlines red so I set to no check
+-- Disabled type checking due to false positives in some areas
 
 -- || Services || --
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -9,46 +9,45 @@ local Signal = require(ReplicatedStorage.Packages.Signal)
 
 -- || Variables || --
 local AUTO_CLEAN_INTERVAL = 30
-
-local PathCache = {} :: { [string]: { string } }
+local pathCache = {} :: { [string]: { string } }
 
 export type IndexPath = string | { string }
 
 -- || Private Functions || --
-local function NormalizePath(IndexPath: IndexPath): { string } | string
-	if type(IndexPath) == "string" then
-		if PathCache[IndexPath] or string.find(IndexPath, ".", 1, true) then
-			local Path = PathCache[IndexPath]
+local function normalizePath(indexPath: IndexPath): { string } | string
+	if type(indexPath) == "string" then
+		if pathCache[indexPath] or string.find(indexPath, ".", 1, true) then
+			local path = pathCache[indexPath]
 
-			if not Path then
-				Path = string.split(IndexPath, ".")
-				PathCache[IndexPath] = Path
+			if not path then
+				path = string.split(indexPath, ".")
+				pathCache[indexPath] = path
 			end
 
-			return Path
+			return path
 		else
-			return IndexPath
+			return indexPath
 		end
 	end
 
-	return IndexPath
+	return indexPath
 end
 
-local function StringifyPath(IndexPath: IndexPath): string
-	if type(IndexPath) == "string" then
-		return IndexPath
+local function stringifyPath(indexPath: IndexPath): string
+	if type(indexPath) == "string" then
+		return indexPath
 	end
 
-	return table.concat(IndexPath, ".")
+	return table.concat(indexPath, ".")
 end
 
 -- || Public API || --
 local DataProfile = {}
 DataProfile.__index = DataProfile
 
-function DataProfile.new<T>(Data: T): DataProfile<T>
+function DataProfile.new<T>(data: T): DataProfile<T>
 	local self = {
-		_Data = Data,
+		_Data = data,
 		_AutoCleanThread = nil,
 		_Signals = {
 			ValueChanged = {},
@@ -69,124 +68,124 @@ function DataProfile.new<T>(Data: T): DataProfile<T>
 end
 
 -- Usable Functions
-function DataProfile.GetValue<T>(self: DataProfile<T>, IndexPath: IndexPath?): T & any
-	if IndexPath == nil then
+function DataProfile.GetValue<T>(self: DataProfile<T>, indexPath: IndexPath?): T & any
+	if indexPath == nil then
 		return self._Data
 	end
 
-	local Data = self._Data
-	IndexPath = NormalizePath(IndexPath)
+	local data = self._Data
+	indexPath = normalizePath(indexPath)
 
-	if type(IndexPath) == "string" then
-		return Data[IndexPath]
+	if type(indexPath) == "string" then
+		return data[indexPath]
 	end
 
-	for _, key in ipairs(IndexPath :: { string }) do
-		Data = Data[key]
+	for _, key in ipairs(indexPath :: { string }) do
+		data = data[key]
 	end
 
-	return Data
+	return data
 end
 
-function DataProfile.SetValue<T>(self: DataProfile<T>, IndexPath: IndexPath, Value: any): ()
-	local Data = self._Data
-	IndexPath = NormalizePath(IndexPath)
+function DataProfile.SetValue<T>(self: DataProfile<T>, indexPath: IndexPath, value: any): ()
+	local data = self._Data
+	indexPath = normalizePath(indexPath)
 
-	if type(IndexPath) == "string" then
-		Data[IndexPath] = Value
-		self:_FireChangedSignals(IndexPath)
+	if type(indexPath) == "string" then
+		data[indexPath] = value
+		self:_FireChangedSignals(indexPath)
 		return
 	end
 
-	for i = 1, #IndexPath - 1 do
-		Data = Data[IndexPath[i]]
+	for i = 1, #indexPath - 1 do
+		data = data[indexPath[i]]
 	end
 
-	Data[IndexPath[#IndexPath]] = Value
-	self:_FireChangedSignals(IndexPath)
+	data[indexPath[#indexPath]] = value
+	self:_FireChangedSignals(indexPath)
 end
 
-function DataProfile.UpdateValue<T>(self: DataProfile<T>, IndexPath: IndexPath, Callback: (any) -> any): any
-	local OldValue = self:GetValue(IndexPath)
-	local NewValue = Callback(OldValue)
+function DataProfile.UpdateValue<T>(self: DataProfile<T>, indexPath: IndexPath, callback: (any) -> any): any
+	local oldValue = self:GetValue(indexPath)
+	local newValue = callback(oldValue)
 
-	self:SetValue(IndexPath, NewValue)
+	self:SetValue(indexPath, newValue)
 
-	return NewValue
+	return newValue
 end
 
-function DataProfile.GetValueChangedSignal<T>(self: DataProfile<T>, IndexPath: IndexPath): Signal.Signal<any>
-	return self:_RetrieveSignal(IndexPath, "ValueChanged")
+function DataProfile.GetValueChangedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<any>
+	return self:_RetrieveSignal(indexPath, "ValueChanged")
 end
 
-function DataProfile.GetChildChangedSignal<T>(self: DataProfile<T>, IndexPath: IndexPath): Signal.Signal<any>
-	return self:_RetrieveSignal(IndexPath, "ChildChanged")
+function DataProfile.GetChildChangedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<any>
+	return self:_RetrieveSignal(indexPath, "ChildChanged")
 end
 
 -- Signal Functions
-function DataProfile._FireChangedSignals<T>(self: DataProfile<T>, IndexPath: IndexPath): string
-	if type(IndexPath) == "string" then
-		self:_FireValueChangedSignal(IndexPath, self:GetValue(IndexPath))
-		return IndexPath
+function DataProfile._FireChangedSignals<T>(self: DataProfile<T>, indexPath: IndexPath): string
+	if type(indexPath) == "string" then
+		self:_FireValueChangedSignal(indexPath, self:GetValue(indexPath))
+		return indexPath
 	end
 
-	local Value = self._Data
+	local value = self._Data
 	local indexString = ""
 
-	for i, Key in ipairs(IndexPath) do
-		Value = Value[Key]
+	for i, key in ipairs(indexPath) do
+		value = value[key]
 
 		if i > 1 then
-			local ParentPath = indexString
+			local parentPath = indexString
 			indexString ..= "."
-			self:_FireChildChangedSignal(ParentPath, Key, Value)
+			self:_FireChildChangedSignal(parentPath, key, value)
 		end
 
-		indexString ..= Key
+		indexString ..= key
 
-		self:_FireValueChangedSignal(indexString, Value)
+		self:_FireValueChangedSignal(indexString, value)
 	end
 
 	return indexString
 end
 
-function DataProfile._FireValueChangedSignal<T>(self: DataProfile<T>, IndexPath: string, Value: any): ()
-	local signal = self._Signals.ValueChanged[IndexPath]
+function DataProfile._FireValueChangedSignal<T>(self: DataProfile<T>, indexPath: string, value: any): ()
+	local signal = self._Signals.ValueChanged[indexPath]
 	if signal then
-		signal:Fire(Value)
+		signal:Fire(value)
 	end
 end
 
 function DataProfile._FireChildChangedSignal<T>(
 	self: DataProfile<T>,
-	IndexPath: string,
-	Index: string | number,
-	Value: any
+	indexPath: string,
+	index: string | number,
+	value: any
 ): ()
-	local signal = self._Signals.ChildChanged[IndexPath]
+	local signal = self._Signals.ChildChanged[indexPath]
 	if signal then
-		signal:Fire(Index, Value)
+		signal:Fire(index, value)
 	end
 end
 
-function DataProfile._RetrieveSignal<T>(self: DataProfile<T>, IndexPath: IndexPath, SignalType: string): Signal.Signal<any>
-	IndexPath = StringifyPath(IndexPath)
-	if not self._Signals[SignalType][IndexPath] then
-		self._Signals[SignalType][IndexPath] = Signal.new()
+function DataProfile._RetrieveSignal<T>(self: DataProfile<T>, indexPath: IndexPath, signalType: string): Signal.Signal<any>
+	indexPath = stringifyPath(indexPath)
+	if not self._Signals[signalType][indexPath] then
+		self._Signals[signalType][indexPath] = Signal.new()
 	end
 
-	return self._Signals[SignalType][IndexPath]
+	return self._Signals[signalType][indexPath]
 end
 
 function DataProfile._CleanSignals<T>(self: DataProfile<T>): ()
-	for _, Signals in self._Signals do
-		for i, signal: Signal.Signal<any> in Signals do
+	for _, signals in self._Signals do
+		for i, signal: Signal.Signal<any> in signals do
 			if #signal:GetConnections() > 0 then
 				continue
 			end
 
 			signal:Destroy()
-			Signals[i] = nil
+			signals[i] = nil
 		end
 	end
 end
@@ -198,8 +197,8 @@ function DataProfile.Destroy<T>(self: DataProfile<T>): ()
 		self._AutoCleanThread = nil
 	end
 
-	for _, Signals in self._Signals do
-		for _, signal in Signals do
+	for _, signals in self._Signals do
+		for _, signal in signals do
 			signal:Destroy()
 		end
 	end

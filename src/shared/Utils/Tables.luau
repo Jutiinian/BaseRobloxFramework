@@ -4,20 +4,20 @@
 local TablesUtility = {}
 
 --[[
-    Recursively searches Tbl for Key and returns the value, or nil if not found.
+    Recursively searches tbl for key and returns the value, or nil if not found.
 ]]
-function TablesUtility:Find(Key: any, Tbl: { [any]: any }): any
+function TablesUtility:Find(key: any, tbl: { [any]: any }): any
 	-- Direct index if key exists at this level
-	if Tbl[Key] then
-		return Tbl[Key]
+	if tbl[key] then
+		return tbl[key]
 	end
 
 	-- Recursive search through nested tables
-	for _, thisValue in Tbl do
+	for _, thisValue in tbl do
 		if typeof(thisValue) == "table" then
-			local SearchResult = self:Find(Key, thisValue)
-			if SearchResult ~= nil then
-				return SearchResult
+			local searchResult = self:Find(key, thisValue)
+			if searchResult ~= nil then
+				return searchResult
 			end
 		end
 	end
@@ -26,30 +26,30 @@ function TablesUtility:Find(Key: any, Tbl: { [any]: any }): any
 end
 
 --[[
-    Recursively searches Tbl for Key and replaces its value with Value.
+    Recursively searches tbl for key and replaces its value with value.
     Returns true if replacement happened, false otherwise.
-	EnforceType = optional; Makes sure incoming value is of the same type as current value
+    enforceType = optional; if true, makes sure the incoming value has the same type as the current value
 ]]
-function TablesUtility:Replace(Key: any, Value: any, Tbl: { [any]: any }, EnforceType: boolean?): boolean
-	EnforceType = EnforceType or false
+function TablesUtility:Replace(key: any, value: any, tbl: { [any]: any }, enforceType: boolean?): boolean
+	enforceType = enforceType or false
 
 	-- Direct replacement if key exists at this level
-	if Tbl[Key] ~= nil then
-		if EnforceType and typeof(Tbl[Key]) ~= typeof(Value) then
+	if tbl[key] ~= nil then
+		if enforceType and typeof(tbl[key]) ~= typeof(value) then
 			warn(
-				`TablesUtility:Replace - Type mismatch for key '{tostring(Key)}': {typeof(Tbl[Key])} ~= {typeof(Value)}`
+				`TablesUtility:Replace - Type mismatch for key '{tostring(key)}': {typeof(tbl[key])} ~= {typeof(value)}`
 			)
 			return false
 		end
 
-		Tbl[Key] = Value
+		tbl[key] = value
 		return true
 	end
 
 	-- Recursive search through nested tables
-	for _, thisValue in pairs(Tbl) do
+	for _, thisValue in pairs(tbl) do
 		if typeof(thisValue) == "table" then
-			local replaced = self:Replace(Key, Value, thisValue)
+			local replaced = self:Replace(key, value, thisValue, enforceType)
 			if replaced then
 				return true
 			end
@@ -60,23 +60,21 @@ function TablesUtility:Replace(Key: any, Value: any, Tbl: { [any]: any }, Enforc
 end
 
 --[[
-	Returns true if the table has no entries
+    Returns true if the table has no entries
 ]]
-function TablesUtility:IsEmpty(Tbl: { [any]: any }): boolean
-	return next(Tbl) == nil
+function TablesUtility:IsEmpty(tbl: { [any]: any }): boolean
+	return next(tbl) == nil
 end
 
 --[[
-	Returns the number of entries in the table.
+    Returns the number of entries in the table.
     Works for both arrays and dictionaries.
 ]]
-function TablesUtility:Length(Tbl: { [any]: any }): number
+function TablesUtility:Length(tbl: { [any]: any }): number
 	local count = 0
-
-	for _ in pairs(Tbl) do
+	for _ in pairs(tbl) do
 		count += 1
 	end
-
 	return count
 end
 

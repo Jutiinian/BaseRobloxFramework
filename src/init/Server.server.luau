@@ -1,17 +1,15 @@
 -- || Services || --
 local ServerScriptService = game:GetService("ServerScriptService")
 
--- || Dependencies || --
-
 -- || Variables || --
-local Services = ServerScriptService.Services
+local servicesFolder = ServerScriptService.Services
 
 -- || Initializer || --
-for _, Service in ipairs(Services:GetDescendants()) do
-	if not Service:IsA("ModuleScript") or not string.match(Service.Name, "ServiceServer") then
+for _, service in ipairs(servicesFolder:GetDescendants()) do
+	if not service:IsA("ModuleScript") or not string.match(service.Name, "ServiceServer") then
 		continue
 	end
 
-	local Module = require(Service)
-	Module:init()
+	local module = require(service)
+	module:Init()
 end

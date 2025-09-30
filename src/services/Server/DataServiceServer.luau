@@ -16,10 +16,10 @@ local DataTemplate = require(ReplicatedStorage.Shared.Services.DataService.DataT
 type IndexPath = DataProfile.IndexPath
 type Profile = ProfileStore.Profile<DataTemplate.Data>
 
-local PlayerStore = ProfileStore.New("TestDataV.001", DataTemplate)
-if RunService:IsStudio() == true then
-	local MockData = PlayerStore.Mock
-	PlayerStore = MockData
+local playerStore = ProfileStore.New("TestDataV.001", DataTemplate)
+if RunService:IsStudio() then
+	local mockData = playerStore.Mock
+	playerStore = mockData
 end
 
 -- || Public API || --
@@ -30,117 +30,117 @@ local DataServiceServer = {
 }
 
 --[[
-	Start the DataService on the Server
+	Start the DataService on the server
 	- Loads data of all players already in game
 	- Listens for players added and removing
 ]]
-function DataServiceServer.init(self: DataServiceServer)
-	for _, Player in ipairs(Players:GetPlayers()) do
+function DataServiceServer.Init(self: DataServiceServer)
+	for _, player in ipairs(Players:GetPlayers()) do
 		Promise.try(function()
-			self:_PlayerAdded(Player)
-		end):catch(function(Err)
-			warn(Err)
-			Player:Kick("Critical Game Error!\nPlease rejoin")
+			self:_PlayerAdded(player)
+		end):catch(function(err)
+			warn(err)
+			player:Kick("Critical Game Error!\nPlease rejoin")
 		end)
 	end
 
-	Players.PlayerAdded:Connect(function(Player)
-		self:_PlayerAdded(Player)
+	Players.PlayerAdded:Connect(function(player)
+		self:_PlayerAdded(player)
 	end)
 
-	Players.PlayerRemoving:Connect(function(Player)
-		self:_PlayerRemoving(Player)
+	Players.PlayerRemoving:Connect(function(player)
+		self:_PlayerRemoving(player)
 	end)
 end
 
-function DataServiceServer._PlayerAdded(self: DataServiceServer, Player: Player): ()
-	local Profile = PlayerStore:StartSessionAsync(`{Player.UserId}`, {
+function DataServiceServer._PlayerAdded(self: DataServiceServer, player: Player): ()
+	local profile = playerStore:StartSessionAsync(`{player.UserId}`, {
 		Cancel = function()
-			return (Player.Parent ~= Players)
+			return (player.Parent ~= Players)
 		end,
 	})
 
-	if not Profile then
-		warn(`{Player.Name}'s profile failed to load!`)
+	if not profile then
+		warn(`{player.Name}'s profile failed to load!`)
 		return
 	end
 
-	Profile:AddUserId(Player.UserId)
-	Profile:Reconcile()
+	profile:AddUserId(player.UserId)
+	profile:Reconcile()
 
-	Profile.OnSessionEnd:Connect(function()
-		self._ActiveProfiles[Player] = nil
-		Player:Kick("Session closed.\nPlease rejoin!")
+	profile.OnSessionEnd:Connect(function()
+		self._ActiveProfiles[player] = nil
+		player:Kick("Session closed.\nPlease rejoin!")
 	end)
 
-	Profile.OnSave:Connect(function()
-		print(`{Player.Name}'s data has been saved`)
+	profile.OnSave:Connect(function()
+		print(`{player.Name}'s data has been saved`)
 	end)
 
-	if not Player:IsDescendantOf(Players) then
-		Player:Kick(`Data failed to load.\nPlease rejoin`)
+	if not player:IsDescendantOf(Players) then
+		player:Kick(`Data failed to load.\nPlease rejoin`)
 		return
 	end
 
-	self._ActiveProfiles[Player] = Profile
-	self:_InitializePlayer(Player, Profile.Data)
+	self._ActiveProfiles[player] = profile
+	self:_InitializePlayer(player, profile.Data)
 end
 
-function DataServiceServer._PlayerRemoving(self: DataServiceServer, Player: Player): ()
-	local Profile = self._ActiveProfiles[Player]
+function DataServiceServer._PlayerRemoving(self: DataServiceServer, player: Player): ()
+	local profile = self._ActiveProfiles[player]
 
-	if not Profile then
+	if not profile then
 		return
 	end
 
-	Profile:EndSession()
-	self._ActiveProfiles[Player] = nil
+	profile:EndSession()
+	self._ActiveProfiles[player] = nil
 
-	local WaitSignal = self._WaitSignals[Player]
-	if WaitSignal then
-		WaitSignal:Destroy()
-		self._WaitSignals[Player] = nil
+	local waitSignal = self._WaitSignals[player]
+	if waitSignal then
+		waitSignal:Destroy()
+		self._WaitSignals[player] = nil
 	end
 
-	local dataProfile = self._DataProfiles[Player]
+	local dataProfile = self._DataProfiles[player]
 	if dataProfile then
 		dataProfile:Destroy()
-		self._DataProfiles[Player] = nil
+		self._DataProfiles[player] = nil
 	end
 end
 
-function DataServiceServer._InitializePlayer(self: DataServiceServer, Player: Player, Data: any): ()
-	self._DataProfiles[Player] = DataProfile.new(Data)
+function DataServiceServer._InitializePlayer(self: DataServiceServer, player: Player, data: any): ()
+	self._DataProfiles[player] = DataProfile.new(data)
 	-- TODO: Fire to the client to update their data
 
-	local WaitSignal = self._WaitSignals[Player]
-	if WaitSignal then
-		WaitSignal:Fire()
+	local waitSignal = self._WaitSignals[player]
+	if waitSignal then
+		waitSignal:Fire()
 
-		WaitSignal:Destroy()
-		self._WaitSignals[Player] = nil
+		waitSignal:Destroy()
+		self._WaitSignals[player] = nil
 	end
 end
 
 --[[
 	Forcefully save a player's profile data without closing session.
-	- If a specific Player is provided, only that player's data is saved.
-	- If no Player is provided, saves all active players' data.
-	- Generally used for more criticle moments (eg. Developer Product related purchases)
+	- If a specific player is provided, only that player's data is saved.
+	- If no player is provided, saves all active players' data.
+	- Generally used for critical moments (eg. Developer Product related purchases)
 ]]
-function DataServiceServer.SaveData(self: DataServiceServer, Player: Player?)
-	local function SaveProfile(p: Player): ()
-		local Profile = self._ActiveProfiles[p]
-		if Profile then
-			Profile:Save()
+function DataServiceServer.SaveData(self: DataServiceServer, player: Player?)
+	local function saveProfile(p: Player): ()
+		local profile = self._ActiveProfiles[p]
+		if profile then
+			profile:Save()
 		end
 	end
 
-	if Player then
-		SaveProfile(Player)
+	if player then
+		saveProfile(player)
 	else
 		for _, p in ipairs(Players:GetPlayers()) do
-			SaveProfile(p)
+			saveProfile(p)
 		end
 	end
 end
@@ -148,8 +148,8 @@ end
 --[[
 	Retrieves the loaded profile for a given player.
 ]]
-function DataServiceServer.GetProfile(self: DataServiceServer, Player: Player): Profile?
-	return self._ActiveProfiles[Player]
+function DataServiceServer.GetProfile(self: DataServiceServer, player: Player): Profile?
+	return self._ActiveProfiles[player]
 end
 
 --[[
@@ -158,21 +158,21 @@ end
 ]]
 function DataServiceServer.WaitForData(
 	self: DataServiceServer,
-	Player: Player
+	player: Player
 ): DataProfile.DataProfile<DataTemplate.Data>
-	local Data = self._DataProfiles[Player]
-	if Data then
-		return Data
+	local data = self._DataProfiles[player]
+	if data then
+		return data
 	end
 
-	local WaitSignal = self._WaitSignals[Player]
-	if not WaitSignal then
-		WaitSignal = Signal.new()
-		self._WaitSignals[Player] = WaitSignal
+	local waitSignal = self._WaitSignals[player]
+	if not waitSignal then
+		waitSignal = Signal.new()
+		self._WaitSignals[player] = waitSignal
 	end
 
-	WaitSignal:Wait()
-	return self._DataProfiles[Player]
+	waitSignal:Wait()
+	return self._DataProfiles[player]
 end
 
 --[[
@@ -180,8 +180,8 @@ end
 	- Path can be "Settings.Audio" or "Settings.Audio.Music"
 	- Path can also be a table {"Settings", "Audio"}
 ]]
-function DataServiceServer.GetValue(self: DataServiceServer, Player: Player, IndexPath: IndexPath?): any
-	return self._DataProfiles[Player]:GetValue(IndexPath)
+function DataServiceServer.GetValue(self: DataServiceServer, player: Player, indexPath: IndexPath?): any
+	return self._DataProfiles[player]:GetValue(indexPath)
 end
 
 --[[
@@ -189,8 +189,8 @@ end
 	- Path can be a string: "Settings.Audio" or "Settings.Audio.Music"
 	- Path can also be a table: {"Settings", "Audio"}
 ]]
-function DataServiceServer.SetValue(self: DataServiceServer, Player: Player, IndexPath: IndexPath, Value: any): ()
-	self._DataProfiles[Player]:SetValue(IndexPath, Value)
+function DataServiceServer.SetValue(self: DataServiceServer, player: Player, indexPath: IndexPath, value: any): ()
+	self._DataProfiles[player]:SetValue(indexPath, value)
 end
 
 --[[
@@ -201,11 +201,11 @@ end
 ]]
 function DataServiceServer.UpdateValue(
 	self: DataServiceServer,
-	Player: Player,
-	IndexPath: IndexPath,
-	Callback: (any) -> any
+	player: Player,
+	indexPath: IndexPath,
+	callback: (any) -> any
 ): any
-	return self._DataProfiles[Player]:UpdateValue(IndexPath, Callback)
+	return self._DataProfiles[player]:UpdateValue(indexPath, callback)
 end
 
 --[[
@@ -216,10 +216,10 @@ end
 ]]
 function DataServiceServer.GetValueChangedSignal(
 	self: DataServiceServer,
-	Player: Player,
-	IndexPath: IndexPath
+	player: Player,
+	indexPath: IndexPath
 ): Signal.Signal<any>
-	return self._DataProfiles[Player]:GetValueChangedSignal(IndexPath)
+	return self._DataProfiles[player]:GetValueChangedSignal(indexPath)
 end
 
 --[[
@@ -230,10 +230,10 @@ end
 ]]
 function DataServiceServer.GetChildChangedSignal(
 	self: DataServiceServer,
-	Player: Player,
-	IndexPath: IndexPath
+	player: Player,
+	indexPath: IndexPath
 ): Signal.Signal<any>
-	return self._DataProfiles[Player]:GetChildChangedSignal(IndexPath)
+	return self._DataProfiles[player]:GetChildChangedSignal(indexPath)
 end
 
 export type DataServiceServer = typeof(DataServiceServer)
