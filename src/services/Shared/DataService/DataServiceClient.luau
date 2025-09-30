@@ -2,20 +2,22 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- || Dependencies || --
-local Packages = ReplicatedStorage.Packages
+local packages = ReplicatedStorage.Packages
 
-local Signal = require(Packages.Signal)
-
+local Signal = require(packages.Signal)
 local DataProfile = require(script.Parent.DataProfile)
 
--- || Variables || --
+-- || Types || --
 type Signal<T> = Signal.Signal<T>
 
-local InitializationSignal = Signal.new()
+-- || Variables || --
+local initializationSignal = Signal.new()
 
 -- || Public API || --
 local DataServiceClient = {}
 
-function DataServiceClient:init() end
+function DataServiceClient:Init()
+	-- TODO: Add initialization logic here
+end
 
 return DataServiceClient
