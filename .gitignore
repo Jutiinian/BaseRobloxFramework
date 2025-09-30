@@ -5,7 +5,11 @@
 /*.rbxlx.lock
 /*.rbxl.lock
 
+# Project Files
 Packages/
 ServerPackages/
 sourcemap.json
 wally.lock
+
+# macOS system files
+.DS_Store
