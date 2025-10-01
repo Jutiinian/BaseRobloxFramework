@@ -15,3 +15,13 @@ event InitialDataSync = {
 	call: SingleAsync,
 	data: map { [string.utf8]: unknown },
 }
+
+event DataUpdate = {
+	from: Server,
+	type: Reliable,
+	call: SingleAsync,
+	data: struct {
+		Key: string.utf8,
+		Value: unknown
+	}
+}

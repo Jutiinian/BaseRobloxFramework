@@ -133,6 +133,9 @@ if not RunService:IsRunning() then
 		InitialDataSync = table.freeze({
 			SetCallback = noop
 		}),
+		DataUpdate = table.freeze({
+			SetCallback = noop
+		}),
 	}) :: Events
 end
 if RunService:IsServer() then
@@ -160,9 +163,10 @@ end
 
 RunService.Heartbeat:Connect(SendEvents)
 
-local reliable_events = table.create(1)
-local reliable_event_queue: { [number]: { any } } = table.create(1)
+local reliable_events = table.create(2)
+local reliable_event_queue: { [number]: { any } } = table.create(2)
 reliable_event_queue[0] = {}
+reliable_event_queue[1] = {}
 reliable.OnClientEvent:Connect(function(buff, inst)
 	incoming_buff = buff
 	incoming_inst = inst
@@ -200,6 +204,27 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 					warn(`[ZAP] {#reliable_event_queue[0]} events in queue for InitialDataSync. Did you forget to attach a listener?`)
 				end
 			end
+		elseif id == 1 then
+			local value
+			local bool_3 = buffer.readu8(incoming_buff, read(1))
+			value = {  }
+			local len_2 = buffer.readu16(incoming_buff, read(2))
+			value["Key"] = buffer.readstring(incoming_buff, read(len_2), len_2)
+			assert(utf8.len(value["Key"]) ~= nil, "value is not valid utf-8")
+			if bit32.btest(bool_3, 0b0000000000000001) then
+				incoming_ipos = incoming_ipos + 1
+				value["Value"] = incoming_inst[incoming_ipos]
+			else
+				value["Value"] = nil
+			end
+			if reliable_events[1] then
+				task.spawn(reliable_events[1], value)
+			else
+				table.insert(reliable_event_queue[1], value)
+				if #reliable_event_queue[1] > 64 then
+					warn(`[ZAP] {#reliable_event_queue[1]} events in queue for DataUpdate. Did you forget to attach a listener?`)
+				end
+			end
 		else
 			error("Unknown event id")
 		end
@@ -219,6 +244,21 @@ local returns = {
 			reliable_event_queue[0] = {}
 			return function()
 				reliable_events[0] = nil
+			end
+		end,
+	},
+	DataUpdate = {
+		SetCallback = function(Callback: (Value: ({
+			["Key"]: (string),
+			["Value"]: ((unknown)),
+		})) -> ()): () -> ()
+			reliable_events[1] = Callback
+			for _, value in reliable_event_queue[1] do
+				task.spawn(Callback, value)
+			end
+			reliable_event_queue[1] = {}
+			return function()
+				reliable_events[1] = nil
 			end
 		end,
 	},
