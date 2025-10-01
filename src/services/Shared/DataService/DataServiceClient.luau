@@ -8,7 +8,6 @@ local Signal = require(packages.Signal)
 
 local DataServiceNetwork = require(ReplicatedStorage.Shared.ClientNetwork.DataServiceNetwork)
 
-local DataTemplate = require(script.Parent.DataTemplate)
 local DataProfile = require(script.Parent.DataProfile)
 
 -- || Types || --
@@ -35,6 +34,7 @@ function DataServiceClient.Init(self: DataServiceClient): () -> ()
 		if not data then
 			return
 		end
+
 		self:_InitializeData(data)
 	end)
 
@@ -44,7 +44,7 @@ function DataServiceClient.Init(self: DataServiceClient): () -> ()
 		end
 
 		self:WaitForData()
-		self._Data:SetValue(data.Key, data.Value)
+		self._Data:SetValue(data.Key.value, data.Value)
 	end)
 
 	return function()
