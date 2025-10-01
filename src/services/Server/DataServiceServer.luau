@@ -161,8 +161,8 @@ end
 
 --[[
 	Retrieves a signal that fires whenever the value at the specified path changes in a player's profile.
-	- Path can be a string: "Settings.Audio" or "Settings.Audio.Music"
-	- Path can also be a table: {"Settings", "Audio"}
+	- indexPath examples: "Settings" or "Settings.Audio" or "Settings.Audio.Music"
+	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
 	- The signal passes the new value when it changes
 ]]
 function DataServiceServer.GetValueChangedSignal(
@@ -175,8 +175,8 @@ end
 
 --[[
 	Retrieves a signal that fires whenever any index under the specified path changes.
-	- Path can be a string: "Settings"
-	- Path can also be a table: {"Settings"}
+	- indexPath examples: "Settings" or "Settings.Audio" or "Settings.Audio.Music"
+	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
 	- Fires with two parameters: the index that changed, and its new value
 ]]
 function DataServiceServer.GetChildChangedSignal(
