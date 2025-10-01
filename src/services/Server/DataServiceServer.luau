@@ -7,7 +7,9 @@ local ServerScriptService = game:GetService("ServerScriptService")
 -- || Dependencies || --
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Promise = require(ReplicatedStorage.Packages.Promise)
+
 local ProfileStore = require(ServerScriptService.ServerPackages.ProfileStore)
+local DataServiceNetwork = require(ServerScriptService.ServerNetwork.DataServiceNetwork)
 
 local DataProfile = require(ReplicatedStorage.Shared.Services.DataService.DataProfile)
 local DataTemplate = require(ReplicatedStorage.Shared.Services.DataService.DataTemplate)
@@ -225,7 +227,7 @@ end
 
 function DataServiceServer._InitializePlayer(self: DataServiceServer, player: Player, data: any): ()
 	self._DataProfiles[player] = DataProfile.new(data)
-	-- TODO: Fire to the client to update their data
+	DataServiceNetwork.InitialDataSync.Fire(player, data)
 
 	local waitSignal = self._WaitSignals[player]
 	if waitSignal then
