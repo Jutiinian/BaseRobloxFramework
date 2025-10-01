@@ -4,9 +4,14 @@ opt client_output = "../src/network/Client/DataServiceNetwork.luau"
 opt remote_scope = "DataService"
 opt casing = "PascalCase"
 
-event AmGay = {
+opt yield_type = "promise"
+opt async_lib = "require(game:GetService('ReplicatedStorage').Packages.Promise)"
+
+opt disable_fire_all = true
+
+event InitialDataSync = {
 	from: Server,
 	type: Reliable,
-	call: ManyAsync,
-	data: (Foo: u32, Bar: string.utf8),
+	call: SingleAsync,
+	data: map { [string.utf8]: unknown },
 }
