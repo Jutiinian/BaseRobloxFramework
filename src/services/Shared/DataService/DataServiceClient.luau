@@ -28,17 +28,61 @@ local DataServiceClient = {
 	Start the DataService on the client
 	- Listens for data to be sent from the server
 	- Syncs data from server to client
-	- Returns a function that disconnects the listener
+	- Returns a function that disconnects the listeners
 ]]
 function DataServiceClient.Init(self: DataServiceClient): () -> ()
-	local Disconnect = DataServiceNetwork.InitialDataSync.SetCallback(function(data)
+	local initialDisconnector = DataServiceNetwork.InitialDataSync.SetCallback(function(data)
 		if not data then
 			return
 		end
 		self:_InitializeData(data)
 	end)
 
-	return Disconnect
+	local updaterDisconnector = DataServiceNetwork.DataUpdate.SetCallback(function(data)
+		if not data or not data.Key then
+			return
+		end
+
+		self:WaitForData()
+		self._Data:SetValue(data.Key, data.Value)
+	end)
+
+	return function()
+		initialDisconnector()
+		updaterDisconnector()
+	end
+end
+
+--[[
+	Retrieves a value from the player's profile data.
+	- indexPath examples: "Settings" or "Settings.Audio" or "Settings.Audio.Music"
+	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
+]]
+function DataServiceClient.GetValue(self: DataServiceClient, indexPath: IndexPath?): any
+	self:WaitForData()
+	return self._Data:GetValue(indexPath)
+end
+
+-- TODO: Maybe add set and update functions
+
+--[[
+	Retrieves a signal that fires whenever the value at the specified path changes in the player's data.
+	- indexPath examples: "Settings" or "Settings.Audio" or "Settings.Audio.Music"
+	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
+	- The signal passes the new value when it changes
+]]
+function DataServiceClient.GetValueChangedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.Signal<any>
+	return self._Data:GetValueChangedSignal(indexPath)
+end
+
+--[[
+	Retrieves a signal that fires whenever any index under the specified path changes.
+	- indexPath examples: "Settings" or "Settings.Audio" or "Settings.Audio.Music"
+	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
+	- Fires with two parameters: the index that changed, and its new value
+]]
+function DataServiceClient.GetChildChangedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.Signal<any>
+	return self._Data:GetChildChangedSignal(indexPath)
 end
 
 --[[
