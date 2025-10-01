@@ -22,6 +22,10 @@
 
       "Packages": {
         "$path": "Packages"
+      },
+
+      "FrameworkClient": {
+        "$path": "src/init/FrameworkClient.luau"
       }
     },
 
@@ -42,15 +46,19 @@
         "$path": "ServerPackages"
       },
 
+      "FrameworkServer": {
+        "$path": "src/init/FrameworkServer.luau"
+      },
+
       "ServerInitializer": {
-        "$path": "src/init/Server.server.luau"
+        "$path": "src/init/Init.server.luau"
       }
     },
 
     "StarterPlayer": {
       "StarterPlayerScripts": {
         "ClientInitializer": {
-          "$path": "src/init/Client.client.luau"
+          "$path": "src/init/Init.client.luau"
         }
       }
     }

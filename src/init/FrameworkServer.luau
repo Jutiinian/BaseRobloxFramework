@@ -1,12 +1,13 @@
 -- || Services || --
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 -- || Dependencies || --
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Promise = require(ReplicatedStorage.Packages.Promise)
 
 -- || Variables || --
-local Services = ReplicatedStorage.Shared.Services
+local Services = ServerScriptService.Services
 
 local started = false
 local startCompleted = false
@@ -14,11 +15,11 @@ local startCompleted = false
 local onCompleted = Signal.new()
 
 -- || Public API || --
-local FrameworkClient = {}
+local FrameworkServer = {}
 
-function FrameworkClient.Start(): Promise.Promise
+function FrameworkServer.Start(): Promise.Promise
 	if started then
-		return Promise.reject("(Client) Framework Already Started!")
+		return Promise.reject("(Server) Framework Already Started!")
 	end
 
 	started = true
@@ -27,7 +28,7 @@ function FrameworkClient.Start(): Promise.Promise
 		local initPromises = {}
 
 		for _, service in ipairs(Services:GetDescendants()) do
-			if not service:IsA("ModuleScript") or not string.match(service.Name, "ServiceClient") then
+			if not service:IsA("ModuleScript") or not string.match(service.Name, "ServiceServer") then
 				continue
 			end
 
@@ -48,7 +49,7 @@ function FrameworkClient.Start(): Promise.Promise
 	end)
 end
 
-function FrameworkClient.OnStart(): Promise.Promise
+function FrameworkServer.OnStart(): Promise.Promise
 	if startCompleted then
 		return Promise.resolve()
 	else
@@ -58,4 +59,4 @@ function FrameworkClient.OnStart(): Promise.Promise
 	end
 end
 
-return FrameworkClient
+return FrameworkServer
