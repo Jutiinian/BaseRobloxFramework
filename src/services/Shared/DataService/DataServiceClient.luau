@@ -81,7 +81,10 @@ end
 	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
 	- Fires with two parameters: the index that changed, and its new value
 ]]
-function DataServiceClient.GetChildChangedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.Signal<any>
+function DataServiceClient.GetChildChangedSignal(
+	self: DataServiceClient,
+	indexPath: IndexPath
+): Signal.Signal<string, any>
 	return self._Data:GetChildChangedSignal(indexPath)
 end
 

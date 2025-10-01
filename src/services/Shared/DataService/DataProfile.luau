@@ -118,7 +118,7 @@ function DataProfile.GetValueChangedSignal<T>(self: DataProfile<T>, indexPath: I
 	return self:_RetrieveSignal(indexPath, "ValueChanged")
 end
 
-function DataProfile.GetChildChangedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<any>
+function DataProfile.GetChildChangedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<string, any>
 	return self:_RetrieveSignal(indexPath, "ChildChanged")
 end
 
@@ -168,7 +168,11 @@ function DataProfile._FireChildChangedSignal<T>(
 	end
 end
 
-function DataProfile._RetrieveSignal<T>(self: DataProfile<T>, indexPath: IndexPath, signalType: string): Signal.Signal<any>
+function DataProfile._RetrieveSignal<T>(
+	self: DataProfile<T>,
+	indexPath: IndexPath,
+	signalType: string
+): Signal.Signal<any, any>
 	indexPath = stringifyPath(indexPath)
 	if not self._Signals[signalType][indexPath] then
 		self._Signals[signalType][indexPath] = Signal.new()
@@ -215,7 +219,7 @@ export type DataProfile<T> = typeof(setmetatable(
 		_AutoCleanThread: thread?,
 		_Signals: {
 			ValueChanged: { [string]: Signal.Signal<any> },
-			ChildChanged: { [string]: Signal.Signal<any> },
+			ChildChanged: { [string]: Signal.Signal<string, any> },
 		},
 	},
 	DataProfile
