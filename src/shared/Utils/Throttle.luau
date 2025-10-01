@@ -1,3 +1,5 @@
+--!strict
+
 -- || Variables || --
 local clock = os.clock
 
@@ -7,7 +9,7 @@ local clock = os.clock
     - If called again before the cooldown finishes, it will wait until the time has passed.
     - Only the most recent call made during the cooldown is executed; earlier calls are discarded.
 ]]
-local function throttle<F>(func: F, seconds: number): F
+local function Throttle<F>(func: F, seconds: number): F
 	local lastCalled = 0
 	local callNumber = 0
 
@@ -30,4 +32,4 @@ local function throttle<F>(func: F, seconds: number): F
 	) :: any
 end
 
-return throttle
+return Throttle
