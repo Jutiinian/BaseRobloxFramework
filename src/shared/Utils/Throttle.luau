@@ -2,8 +2,10 @@
 local clock = os.clock
 
 --[[
-    Returns the function passed as a throttled function
-    - Once ran, will wait provided number of seconds before able to run again 
+    Returns a throttled version of the given function.
+    - Ensures the function cannot be called more often than once every `seconds`.
+    - If called again before the cooldown finishes, it will wait until the time has passed.
+    - Only the most recent call made during the cooldown is executed; earlier calls are discarded.
 ]]
 local function throttle<F>(func: F, seconds: number): F
 	local lastCalled = 0
