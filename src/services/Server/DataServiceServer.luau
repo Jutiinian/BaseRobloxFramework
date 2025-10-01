@@ -110,8 +110,8 @@ end
 
 --[[
 	Retrieves a value from the player's profile data.
-	- Path can be "Settings.Audio" or "Settings.Audio.Music"
-	- Path can also be a table {"Settings", "Audio"}
+	- indexPath examples: "Settings" or "Settings.Audio" or "Settings.Audio.Music"
+	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
 ]]
 function DataServiceServer.GetValue(self: DataServiceServer, player: Player, indexPath: IndexPath?): any
 	return self._DataProfiles[player]:GetValue(indexPath)
@@ -119,17 +119,25 @@ end
 
 --[[
 	Sets a value in the player's profile data.
-	- Path can be a string: "Settings.Audio" or "Settings.Audio.Music"
-	- Path can also be a table: {"Settings", "Audio"}
+	- indexPath examples: "Settings" or "Settings.Audio" or "Settings.Audio.Music"
+	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
 ]]
 function DataServiceServer.SetValue(self: DataServiceServer, player: Player, indexPath: IndexPath, value: any): ()
+	DataServiceNetwork.DataUpdate.Fire(player, {
+		Key = {
+			Type = type(indexPath) == "table" and "Table" or "String",
+			value = indexPath,
+		},
+		Value = value,
+	})
+
 	self._DataProfiles[player]:SetValue(indexPath, value)
 end
 
 --[[
 	Updates a value in the player's profile data using a callback function and returns the new value.
-	- Path can be a string: "Settings.Audio" or "Settings.Audio.Music"
-	- Path can also be a table: {"Settings", "Audio"}
+	- indexPath examples: "Settings" or "Settings.Audio" or "Settings.Audio.Music"
+	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
 	- The callback receives the current value and should return the new value
 ]]
 function DataServiceServer.UpdateValue(
@@ -138,7 +146,17 @@ function DataServiceServer.UpdateValue(
 	indexPath: IndexPath,
 	callback: (any) -> any
 ): any
-	return self._DataProfiles[player]:UpdateValue(indexPath, callback)
+	local newValue = self._DataProfiles[player]:UpdateValue(indexPath, callback)
+
+	DataServiceNetwork.DataUpdate.Fire(player, {
+		Key = {
+			Type = type(indexPath) == "table" and "Table" or "String",
+			value = indexPath,
+		},
+		Value = newValue,
+	})
+
+	return newValue
 end
 
 --[[
