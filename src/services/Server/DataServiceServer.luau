@@ -53,75 +53,6 @@ function DataServiceServer.Init(self: DataServiceServer)
 	end)
 end
 
-function DataServiceServer._PlayerAdded(self: DataServiceServer, player: Player): ()
-	local profile = playerStore:StartSessionAsync(`{player.UserId}`, {
-		Cancel = function()
-			return (player.Parent ~= Players)
-		end,
-	})
-
-	if not profile then
-		warn(`{player.Name}'s profile failed to load!`)
-		return
-	end
-
-	profile:AddUserId(player.UserId)
-	profile:Reconcile()
-
-	profile.OnSessionEnd:Connect(function()
-		self._ActiveProfiles[player] = nil
-		player:Kick("Session closed.\nPlease rejoin!")
-	end)
-
-	profile.OnSave:Connect(function()
-		print(`{player.Name}'s data has been saved`)
-	end)
-
-	if not player:IsDescendantOf(Players) then
-		player:Kick(`Data failed to load.\nPlease rejoin`)
-		return
-	end
-
-	self._ActiveProfiles[player] = profile
-	self:_InitializePlayer(player, profile.Data)
-end
-
-function DataServiceServer._PlayerRemoving(self: DataServiceServer, player: Player): ()
-	local profile = self._ActiveProfiles[player]
-
-	if not profile then
-		return
-	end
-
-	profile:EndSession()
-	self._ActiveProfiles[player] = nil
-
-	local waitSignal = self._WaitSignals[player]
-	if waitSignal then
-		waitSignal:Destroy()
-		self._WaitSignals[player] = nil
-	end
-
-	local dataProfile = self._DataProfiles[player]
-	if dataProfile then
-		dataProfile:Destroy()
-		self._DataProfiles[player] = nil
-	end
-end
-
-function DataServiceServer._InitializePlayer(self: DataServiceServer, player: Player, data: any): ()
-	self._DataProfiles[player] = DataProfile.new(data)
-	-- TODO: Fire to the client to update their data
-
-	local waitSignal = self._WaitSignals[player]
-	if waitSignal then
-		waitSignal:Fire()
-
-		waitSignal:Destroy()
-		self._WaitSignals[player] = nil
-	end
-end
-
 --[[
 	Forcefully save a player's profile data without closing session.
 	- If a specific player is provided, only that player's data is saved.
@@ -234,6 +165,75 @@ function DataServiceServer.GetChildChangedSignal(
 	indexPath: IndexPath
 ): Signal.Signal<any>
 	return self._DataProfiles[player]:GetChildChangedSignal(indexPath)
+end
+
+function DataServiceServer._PlayerAdded(self: DataServiceServer, player: Player): ()
+	local profile = playerStore:StartSessionAsync(`{player.UserId}`, {
+		Cancel = function()
+			return (player.Parent ~= Players)
+		end,
+	})
+
+	if not profile then
+		warn(`{player.Name}'s profile failed to load!`)
+		return
+	end
+
+	profile:AddUserId(player.UserId)
+	profile:Reconcile()
+
+	profile.OnSessionEnd:Connect(function()
+		self._ActiveProfiles[player] = nil
+		player:Kick("Session closed.\nPlease rejoin!")
+	end)
+
+	profile.OnSave:Connect(function()
+		print(`{player.Name}'s data has been saved`)
+	end)
+
+	if not player:IsDescendantOf(Players) then
+		player:Kick(`Data failed to load.\nPlease rejoin`)
+		return
+	end
+
+	self._ActiveProfiles[player] = profile
+	self:_InitializePlayer(player, profile.Data)
+end
+
+function DataServiceServer._PlayerRemoving(self: DataServiceServer, player: Player): ()
+	local profile = self._ActiveProfiles[player]
+
+	if not profile then
+		return
+	end
+
+	profile:EndSession()
+	self._ActiveProfiles[player] = nil
+
+	local waitSignal = self._WaitSignals[player]
+	if waitSignal then
+		waitSignal:Destroy()
+		self._WaitSignals[player] = nil
+	end
+
+	local dataProfile = self._DataProfiles[player]
+	if dataProfile then
+		dataProfile:Destroy()
+		self._DataProfiles[player] = nil
+	end
+end
+
+function DataServiceServer._InitializePlayer(self: DataServiceServer, player: Player, data: any): ()
+	self._DataProfiles[player] = DataProfile.new(data)
+	-- TODO: Fire to the client to update their data
+
+	local waitSignal = self._WaitSignals[player]
+	if waitSignal then
+		waitSignal:Fire()
+
+		waitSignal:Destroy()
+		self._WaitSignals[player] = nil
+	end
 end
 
 export type DataServiceServer = typeof(DataServiceServer)
