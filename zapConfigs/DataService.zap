@@ -16,12 +16,17 @@ event InitialDataSync = {
 	data: map { [string.utf8]: unknown },
 }
 
+type indexPath = enum "Type" {
+    String { value: string.utf8 },
+    Table { value: string.utf8[] },
+}
+
 event DataUpdate = {
 	from: Server,
 	type: Reliable,
 	call: SingleAsync,
 	data: struct {
-		Key: string.utf8,
+		Key: indexPath,
 		Value: unknown
 	}
 }

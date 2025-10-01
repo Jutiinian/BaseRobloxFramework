@@ -146,6 +146,13 @@ local remotes = ReplicatedStorage:WaitForChild("ZAP")
 local reliable = remotes:WaitForChild("DataService_RELIABLE")
 assert(reliable:IsA("RemoteEvent"), "Expected DataService_RELIABLE to be a RemoteEvent")
 
+export type indexPath = ({
+	["Type"]: "String",
+	["value"]: (string),
+} | {
+	["Type"]: "Table",
+	["value"]: ({ (string) }),
+})
 
 local function SendEvents()
 	if outgoing_used ~= 0 then
@@ -208,10 +215,24 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 			local value
 			local bool_3 = buffer.readu8(incoming_buff, read(1))
 			value = {  }
-			local len_2 = buffer.readu16(incoming_buff, read(2))
-			value["Key"] = buffer.readstring(incoming_buff, read(len_2), len_2)
-			assert(utf8.len(value["Key"]) ~= nil, "value is not valid utf-8")
 			if bit32.btest(bool_3, 0b0000000000000001) then
+				value["Key"] = { ["Type"] = "String" }
+				local len_2 = buffer.readu16(incoming_buff, read(2))
+				value["Key"]["value"] = buffer.readstring(incoming_buff, read(len_2), len_2)
+				assert(utf8.len(value["Key"]["value"]) ~= nil, "value is not valid utf-8")
+			else
+				value["Key"] = { ["Type"] = "Table" }
+				local len_3 = buffer.readu16(incoming_buff, read(2))
+				value["Key"]["value"] = table.create(len_3)
+				for i_1 = 1, len_3 do
+					local val_2
+					local len_4 = buffer.readu16(incoming_buff, read(2))
+					val_2 = buffer.readstring(incoming_buff, read(len_4), len_4)
+					assert(utf8.len(val_2) ~= nil, "value is not valid utf-8")
+					value["Key"]["value"][i_1] = val_2
+				end
+			end
+			if bit32.btest(bool_3, 0b0000000000000010) then
 				incoming_ipos = incoming_ipos + 1
 				value["Value"] = incoming_inst[incoming_ipos]
 			else
@@ -249,7 +270,13 @@ local returns = {
 	},
 	DataUpdate = {
 		SetCallback = function(Callback: (Value: ({
-			["Key"]: (string),
+			["Key"]: ({
+				["Type"]: "String",
+				["value"]: (string),
+			} | {
+				["Type"]: "Table",
+				["value"]: ({ (string) }),
+			}),
 			["Value"]: ((unknown)),
 		})) -> ()): () -> ()
 			reliable_events[1] = Callback

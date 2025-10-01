@@ -177,6 +177,13 @@ end
 Players.PlayerRemoving:Connect(function(player)
 	player_map[player] = nil
 end)
+export type indexPath = ({
+	["Type"]: "String",
+	["value"]: (string),
+} | {
+	["Type"]: "Table",
+	["value"]: ({ (string) }),
+})
 
 local function SendEvents()
 	for player, outgoing in player_map do
@@ -368,7 +375,13 @@ local returns = {
 	},
 	DataUpdate = {
 		Fire = function(Player: Player, Value: ({
-			["Key"]: (string),
+			["Key"]: ({
+				["Type"]: "String",
+				["value"]: (string),
+			} | {
+				["Type"]: "Table",
+				["value"]: ({ (string) }),
+			}),
 			["Value"]: ((unknown)),
 		}))
 			load_player(Player)
@@ -376,21 +389,46 @@ local returns = {
 			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
 			local bool_9 = 0
 			local bool_9_pos_1 = alloc(1)
-			local len_9 = #Value["Key"]
-			assert(utf8.len(Value["Key"]) ~= nil, "value is not valid utf-8")
-			alloc(2)
-			buffer.writeu16(outgoing_buff, outgoing_apos, len_9)
-			alloc(len_9)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["Key"], len_9)
-			if Value["Value"] ~= nil then
+			if Value["Key"]["Type"] == "String" then
 				bool_9 = bit32.bor(bool_9, 0b0000000000000001)
+				local len_9 = #Value["Key"]["value"]
+				assert(utf8.len(Value["Key"]["value"]) ~= nil, "value is not valid utf-8")
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_9)
+				alloc(len_9)
+				buffer.writestring(outgoing_buff, outgoing_apos, Value["Key"]["value"], len_9)
+			elseif Value["Key"]["Type"] == "Table" then
+				local _
+				local len_10 = #Value["Key"]["value"]
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_10)
+				for i_1 = 1, len_10 do
+					local val_1 = Value["Key"]["value"][i_1]
+					local len_11 = #val_1
+					assert(utf8.len(val_1) ~= nil, "value is not valid utf-8")
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_11)
+					alloc(len_11)
+					buffer.writestring(outgoing_buff, outgoing_apos, val_1, len_11)
+				end
+			else
+				error("Invalid variant")
+			end
+			if Value["Value"] ~= nil then
+				bool_9 = bit32.bor(bool_9, 0b0000000000000010)
 				table.insert(outgoing_inst, Value["Value"])
 			end
 			buffer.writeu8(outgoing_buff, bool_9_pos_1, bool_9)
 			player_map[Player] = save()
 		end,
 		FireExcept = function(Except: Player, Value: ({
-			["Key"]: (string),
+			["Key"]: ({
+				["Type"]: "String",
+				["value"]: (string),
+			} | {
+				["Type"]: "Table",
+				["value"]: ({ (string) }),
+			}),
 			["Value"]: ((unknown)),
 		}))
 			load_empty()
@@ -398,14 +436,33 @@ local returns = {
 			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
 			local bool_10 = 0
 			local bool_10_pos_1 = alloc(1)
-			local len_10 = #Value["Key"]
-			assert(utf8.len(Value["Key"]) ~= nil, "value is not valid utf-8")
-			alloc(2)
-			buffer.writeu16(outgoing_buff, outgoing_apos, len_10)
-			alloc(len_10)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["Key"], len_10)
-			if Value["Value"] ~= nil then
+			if Value["Key"]["Type"] == "String" then
 				bool_10 = bit32.bor(bool_10, 0b0000000000000001)
+				local len_12 = #Value["Key"]["value"]
+				assert(utf8.len(Value["Key"]["value"]) ~= nil, "value is not valid utf-8")
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_12)
+				alloc(len_12)
+				buffer.writestring(outgoing_buff, outgoing_apos, Value["Key"]["value"], len_12)
+			elseif Value["Key"]["Type"] == "Table" then
+				local _
+				local len_13 = #Value["Key"]["value"]
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_13)
+				for i_2 = 1, len_13 do
+					local val_2 = Value["Key"]["value"][i_2]
+					local len_14 = #val_2
+					assert(utf8.len(val_2) ~= nil, "value is not valid utf-8")
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_14)
+					alloc(len_14)
+					buffer.writestring(outgoing_buff, outgoing_apos, val_2, len_14)
+				end
+			else
+				error("Invalid variant")
+			end
+			if Value["Value"] ~= nil then
+				bool_10 = bit32.bor(bool_10, 0b0000000000000010)
 				table.insert(outgoing_inst, Value["Value"])
 			end
 			buffer.writeu8(outgoing_buff, bool_10_pos_1, bool_10)
@@ -421,7 +478,13 @@ local returns = {
 			end
 		end,
 		FireList = function(List: { [unknown]: Player }, Value: ({
-			["Key"]: (string),
+			["Key"]: ({
+				["Type"]: "String",
+				["value"]: (string),
+			} | {
+				["Type"]: "Table",
+				["value"]: ({ (string) }),
+			}),
 			["Value"]: ((unknown)),
 		}))
 			load_empty()
@@ -429,14 +492,33 @@ local returns = {
 			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
 			local bool_11 = 0
 			local bool_11_pos_1 = alloc(1)
-			local len_11 = #Value["Key"]
-			assert(utf8.len(Value["Key"]) ~= nil, "value is not valid utf-8")
-			alloc(2)
-			buffer.writeu16(outgoing_buff, outgoing_apos, len_11)
-			alloc(len_11)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["Key"], len_11)
-			if Value["Value"] ~= nil then
+			if Value["Key"]["Type"] == "String" then
 				bool_11 = bit32.bor(bool_11, 0b0000000000000001)
+				local len_15 = #Value["Key"]["value"]
+				assert(utf8.len(Value["Key"]["value"]) ~= nil, "value is not valid utf-8")
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_15)
+				alloc(len_15)
+				buffer.writestring(outgoing_buff, outgoing_apos, Value["Key"]["value"], len_15)
+			elseif Value["Key"]["Type"] == "Table" then
+				local _
+				local len_16 = #Value["Key"]["value"]
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_16)
+				for i_3 = 1, len_16 do
+					local val_3 = Value["Key"]["value"][i_3]
+					local len_17 = #val_3
+					assert(utf8.len(val_3) ~= nil, "value is not valid utf-8")
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_17)
+					alloc(len_17)
+					buffer.writestring(outgoing_buff, outgoing_apos, val_3, len_17)
+				end
+			else
+				error("Invalid variant")
+			end
+			if Value["Value"] ~= nil then
+				bool_11 = bit32.bor(bool_11, 0b0000000000000010)
 				table.insert(outgoing_inst, Value["Value"])
 			end
 			buffer.writeu8(outgoing_buff, bool_11_pos_1, bool_11)
@@ -450,7 +532,13 @@ local returns = {
 			end
 		end,
 		FireSet = function(Set: { [Player]: any }, Value: ({
-			["Key"]: (string),
+			["Key"]: ({
+				["Type"]: "String",
+				["value"]: (string),
+			} | {
+				["Type"]: "Table",
+				["value"]: ({ (string) }),
+			}),
 			["Value"]: ((unknown)),
 		}))
 			load_empty()
@@ -458,14 +546,33 @@ local returns = {
 			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
 			local bool_12 = 0
 			local bool_12_pos_1 = alloc(1)
-			local len_12 = #Value["Key"]
-			assert(utf8.len(Value["Key"]) ~= nil, "value is not valid utf-8")
-			alloc(2)
-			buffer.writeu16(outgoing_buff, outgoing_apos, len_12)
-			alloc(len_12)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["Key"], len_12)
-			if Value["Value"] ~= nil then
+			if Value["Key"]["Type"] == "String" then
 				bool_12 = bit32.bor(bool_12, 0b0000000000000001)
+				local len_18 = #Value["Key"]["value"]
+				assert(utf8.len(Value["Key"]["value"]) ~= nil, "value is not valid utf-8")
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_18)
+				alloc(len_18)
+				buffer.writestring(outgoing_buff, outgoing_apos, Value["Key"]["value"], len_18)
+			elseif Value["Key"]["Type"] == "Table" then
+				local _
+				local len_19 = #Value["Key"]["value"]
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_19)
+				for i_4 = 1, len_19 do
+					local val_4 = Value["Key"]["value"][i_4]
+					local len_20 = #val_4
+					assert(utf8.len(val_4) ~= nil, "value is not valid utf-8")
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_20)
+					alloc(len_20)
+					buffer.writestring(outgoing_buff, outgoing_apos, val_4, len_20)
+				end
+			else
+				error("Invalid variant")
+			end
+			if Value["Value"] ~= nil then
+				bool_12 = bit32.bor(bool_12, 0b0000000000000010)
 				table.insert(outgoing_inst, Value["Value"])
 			end
 			buffer.writeu8(outgoing_buff, bool_12_pos_1, bool_12)
