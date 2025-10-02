@@ -30,10 +30,6 @@
     },
 
     "ServerScriptService": {
-      "Classes": {
-        "$path": "src/server/Classes"
-      },
-
       "ServerNetwork": {
         "$path": "src/network/Server"
       },
