@@ -2,8 +2,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- || Dependencies || --
-local Signal = require(ReplicatedStorage.Packages.Signal)
 local Promise = require(ReplicatedStorage.Packages.Promise)
+local Signal = require(ReplicatedStorage.Packages.Signal)
 
 -- || Variables || --
 local Services = ReplicatedStorage.Shared.Services
@@ -27,7 +27,7 @@ function FrameworkClient.Start(): Promise.Promise
 		local initPromises = {}
 
 		for _, service in ipairs(Services:GetDescendants()) do
-			if not service:IsA("ModuleScript") or not string.match(service.Name, "ServiceClient") then
+			if not service:IsA("ModuleScript") or not string.match(service.Name, "Service") then
 				continue
 			end
 
