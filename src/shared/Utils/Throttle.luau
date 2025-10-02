@@ -3,6 +3,7 @@
 -- || Variables || --
 local clock = os.clock
 
+-- || Public API || --
 --[[
     Returns a throttled version of the given function.
     - Ensures the function cannot be called more often than once every `seconds`.
