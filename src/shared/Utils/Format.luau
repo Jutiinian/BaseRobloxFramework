@@ -9,14 +9,13 @@ type ClockOptions = {
 }
 
 -- || Public API || --
-local AbbreviateUtil = {}
+local FormatUtil = {}
 
 --[[
     Abbreviates a number into a human-readable format.
-    - Supports K, M, B, T, and extended suffixes (aa, ab, ac...).
     - decimalPlaces: optional, defaults to 2.
 ]]
-function AbbreviateUtil.AbbreviateNumber(number: number, decimalPlaces: number?): string
+function FormatUtil.AbbreviateNumber(number: number, decimalPlaces: number?): string
 	decimalPlaces = decimalPlaces or 2
 	local absNumber = number >= 0 and number or -number
 	local sign = number < 0 and "-" or ""
@@ -41,7 +40,7 @@ end
     Converts seconds into a human-readable time string.
     - Returns days, hours, minutes, and seconds as needed.
 ]]
-function AbbreviateUtil.FormatTimeReadable(seconds: number): string
+function FormatUtil.FormatTimeReadable(seconds: number): string
 	local s = math.floor(seconds)
 	local days = math.floor(s / 86400)
 	s -= days * 86400
@@ -75,7 +74,7 @@ end
         - showMinutes (boolean): whether to always show minutes
         - zeroPad (boolean): pad numbers with leading zeros
 ]]
-function AbbreviateUtil.FormatTimeClock(seconds: number, options: ClockOptions?): string
+function FormatUtil.FormatTimeClock(seconds: number, options: ClockOptions?): string
 	options = options or {} :: ClockOptions
 
 	local zeroPad = (options :: ClockOptions).zeroPad ~= false -- default true
@@ -116,7 +115,7 @@ end
     Converts a decimal number to a percentage string.
     - decimalPlaces: optional, defaults to 2
 ]]
-function AbbreviateUtil.FormatPercent(decimal: number, decimalPlaces: number?): string
+function FormatUtil.FormatPercent(decimal: number, decimalPlaces: number?): string
 	decimalPlaces = decimalPlaces or 2
 	local percent = decimal * 100
 	local formatted = ("%." .. decimalPlaces :: number .. "f"):format(percent)
@@ -129,7 +128,7 @@ end
     - Supports B, KB, MB, GB, TB, PB.
     - decimalPlaces: optional, defaults to 2
 ]]
-function AbbreviateUtil.FormatBytes(bytes: number, decimalPlaces: number?): string
+function FormatUtil.FormatBytes(bytes: number, decimalPlaces: number?): string
 	decimalPlaces = decimalPlaces or 2
 	local absBytes = bytes >= 0 and bytes or -bytes
 	local sign = bytes < 0 and "-" or ""
@@ -146,4 +145,4 @@ function AbbreviateUtil.FormatBytes(bytes: number, decimalPlaces: number?): stri
 	return sign .. formatted .. " " .. suffixes[i]
 end
 
-return AbbreviateUtil
+return FormatUtil
