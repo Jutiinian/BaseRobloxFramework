@@ -12,8 +12,42 @@ local SharedServices = ReplicatedStorage.Shared.Services
 
 local started = false
 local startCompleted = false
-
 local onCompleted = Signal.new()
+
+-- || Private Helper || --
+local function initModules(container, filterPattern: string)
+	local promises = {}
+
+	for _, moduleScript in ipairs(container:GetDescendants()) do
+		if not moduleScript:IsA("ModuleScript") or not string.match(moduleScript.Name, filterPattern) or string.match(moduleScript.Name, "ServiceClient") then
+			continue
+		end
+
+		table.insert(
+			promises,
+			Promise.new(function(resolve)
+				local success, module = pcall(require, moduleScript)
+				if not success then
+					warn(("Failed to require %s: %s"):format(moduleScript:GetFullName(), module))
+					resolve()
+					return
+				end
+
+				if debug and debug.setmemorycategory then
+					debug.setmemorycategory(moduleScript.Name)
+				end
+
+				if type(module.Init) == "function" then
+					module:Init()
+				end
+
+				resolve()
+			end):catch(warn)
+		)
+	end
+
+	return Promise.all(promises)
+end
 
 -- || Public API || --
 local FrameworkServer = {}
@@ -25,45 +59,9 @@ function FrameworkServer.Start(): Promise.Promise
 
 	started = true
 
-	return Promise.new(function(resolve)
-		local initPromises = {}
-
-		for _, service in ipairs(Services:GetDescendants()) do
-			if not service:IsA("ModuleScript") or not string.match(service.Name, "ServiceServer") then
-				continue
-			end
-
-			table.insert(
-				initPromises,
-				Promise.try(function()
-					local module = require(service)
-					debug.setmemorycategory(service.Name)
-					return type(module.Init) == "function" and module:Init() or true
-				end)
-			)
-		end
-
-		resolve(Promise.all(initPromises))
-	end)
+	return initModules(Services, "ServiceServer")
 		:andThen(function()
-			local sharedInitPromises = {}
-
-			for _, service in ipairs(SharedServices:GetDescendants()) do
-				if not service:IsA("ModuleScript") or not string.match(service.Name, "Service") or string.match(service.Name, "ServiceClient") then
-					continue
-				end
-
-				table.insert(
-					sharedInitPromises,
-					Promise.try(function()
-						local module = require(service)
-						debug.setmemorycategory(service.Name)
-						return type(module.Init) == "function" and module:Init() or true
-					end)
-				)
-			end
-
-			return Promise.all(sharedInitPromises)
+			return initModules(SharedServices, "Service")
 		end)
 		:andThen(function()
 			startCompleted = true

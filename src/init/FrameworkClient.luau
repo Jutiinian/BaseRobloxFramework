@@ -10,8 +10,42 @@ local Services = ReplicatedStorage.Shared.Services
 
 local started = false
 local startCompleted = false
-
 local onCompleted = Signal.new()
+
+-- || Private Helper || --
+local function initModules(container, filterPattern: string)
+	local promises = {}
+
+	for _, moduleScript in ipairs(container:GetDescendants()) do
+		if not moduleScript:IsA("ModuleScript") or not string.match(moduleScript.Name, filterPattern) then
+			continue
+		end
+
+		table.insert(
+			promises,
+			Promise.new(function(resolve)
+				local success, module = pcall(require, moduleScript)
+				if not success then
+					warn(("Failed to require %s: %s"):format(moduleScript:GetFullName(), module))
+					resolve()
+					return
+				end
+
+				if debug and debug.setmemorycategory then
+					debug.setmemorycategory(moduleScript.Name)
+				end
+
+				if type(module.Init) == "function" then
+					module:Init()
+				end
+
+				resolve()
+			end):catch(warn)
+		)
+	end
+
+	return Promise.all(promises)
+end
 
 -- || Public API || --
 local FrameworkClient = {}
@@ -23,26 +57,7 @@ function FrameworkClient.Start(): Promise.Promise
 
 	started = true
 
-	return Promise.new(function(resolve)
-		local initPromises = {}
-
-		for _, service in ipairs(Services:GetDescendants()) do
-			if not service:IsA("ModuleScript") or not string.match(service.Name, "Service") then
-				continue
-			end
-
-			table.insert(
-				initPromises,
-				Promise.try(function()
-					local module = require(service)
-					debug.setmemorycategory(service.Name)
-					return type(module.Init) == "function" and module:Init() or true
-				end)
-			)
-		end
-
-		resolve(Promise.all(initPromises))
-	end):andThen(function()
+	return initModules(Services, "Service"):andThen(function()
 		startCompleted = true
 		onCompleted:FireDeferred()
 	end)
