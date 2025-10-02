@@ -47,9 +47,9 @@ DataProfile.__index = DataProfile
 
 function DataProfile.new<T>(data: T): DataProfile<T>
 	local self = {
-		_Data = data,
-		_AutoCleanThread = nil,
-		_Signals = {
+		_data = data,
+		_autoCleanThread = nil,
+		_signals = {
 			ValueChanged = {},
 			ChildChanged = {},
 		},
@@ -57,7 +57,7 @@ function DataProfile.new<T>(data: T): DataProfile<T>
 
 	setmetatable(self, DataProfile)
 
-	self._AutoCleanThread = task.spawn(function()
+	self._autoCleanThread = task.spawn(function()
 		while true do
 			task.wait(AUTO_CLEAN_INTERVAL)
 			self:_CleanSignals()
@@ -70,10 +70,10 @@ end
 -- Usable Functions
 function DataProfile.GetValue<T>(self: DataProfile<T>, indexPath: IndexPath?): T & any
 	if indexPath == nil then
-		return self._Data
+		return self._data
 	end
 
-	local data = self._Data
+	local data = self._data
 	indexPath = normalizePath(indexPath)
 
 	if type(indexPath) == "string" then
@@ -88,7 +88,7 @@ function DataProfile.GetValue<T>(self: DataProfile<T>, indexPath: IndexPath?): T
 end
 
 function DataProfile.SetValue<T>(self: DataProfile<T>, indexPath: IndexPath, value: any): ()
-	local data = self._Data
+	local data = self._data
 	indexPath = normalizePath(indexPath)
 
 	if type(indexPath) == "string" then
@@ -129,7 +129,7 @@ function DataProfile._FireChangedSignals<T>(self: DataProfile<T>, indexPath: Ind
 		return indexPath
 	end
 
-	local value = self._Data
+	local value = self._data
 	local indexString = ""
 
 	for i, key in ipairs(indexPath) do
@@ -150,39 +150,30 @@ function DataProfile._FireChangedSignals<T>(self: DataProfile<T>, indexPath: Ind
 end
 
 function DataProfile._FireValueChangedSignal<T>(self: DataProfile<T>, indexPath: string, value: any): ()
-	local signal = self._Signals.ValueChanged[indexPath]
+	local signal = self._signals.ValueChanged[indexPath]
 	if signal then
 		signal:Fire(value)
 	end
 end
 
-function DataProfile._FireChildChangedSignal<T>(
-	self: DataProfile<T>,
-	indexPath: string,
-	index: string | number,
-	value: any
-): ()
-	local signal = self._Signals.ChildChanged[indexPath]
+function DataProfile._FireChildChangedSignal<T>(self: DataProfile<T>, indexPath: string, index: string | number, value: any): ()
+	local signal = self._signals.ChildChanged[indexPath]
 	if signal then
 		signal:Fire(index, value)
 	end
 end
 
-function DataProfile._RetrieveSignal<T>(
-	self: DataProfile<T>,
-	indexPath: IndexPath,
-	signalType: string
-): Signal.Signal<any, any>
+function DataProfile._RetrieveSignal<T>(self: DataProfile<T>, indexPath: IndexPath, signalType: string): Signal.Signal<any, any>
 	indexPath = stringifyPath(indexPath)
-	if not self._Signals[signalType][indexPath] then
-		self._Signals[signalType][indexPath] = Signal.new()
+	if not self._signals[signalType][indexPath] then
+		self._signals[signalType][indexPath] = Signal.new()
 	end
 
-	return self._Signals[signalType][indexPath]
+	return self._signals[signalType][indexPath]
 end
 
 function DataProfile._CleanSignals<T>(self: DataProfile<T>): ()
-	for _, signals in self._Signals do
+	for _, signals in self._signals do
 		for i, signal: Signal.Signal<any> in signals do
 			if #signal:GetConnections() > 0 then
 				continue
@@ -196,18 +187,18 @@ end
 
 -- Destroy Function
 function DataProfile.Destroy<T>(self: DataProfile<T>): ()
-	if self._AutoCleanThread then
-		task.cancel(self._AutoCleanThread)
-		self._AutoCleanThread = nil
+	if self._autoCleanThread then
+		task.cancel(self._autoCleanThread)
+		self._autoCleanThread = nil
 	end
 
-	for _, signals in self._Signals do
+	for _, signals in self._signals do
 		for _, signal in signals do
 			signal:Destroy()
 		end
 	end
 
-	self._Signals = nil :: any
+	self._signals = nil :: any
 
 	table.clear(self)
 	setmetatable(self, nil :: any)
@@ -215,9 +206,9 @@ end
 
 export type DataProfile<T> = typeof(setmetatable(
 	{} :: {
-		_Data: T,
-		_AutoCleanThread: thread?,
-		_Signals: {
+		_data: T,
+		_autoCleanThread: thread?,
+		_signals: {
 			ValueChanged: { [string]: Signal.Signal<any> },
 			ChildChanged: { [string]: Signal.Signal<string, any> },
 		},
