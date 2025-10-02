@@ -7,6 +7,10 @@
       "Shared": {
         "$path": "src/shared",
 
+        "Classes": {
+          "$path": "src/classes/Shared"
+        },
+
         "Services": {
           "$path": "src/services/Shared"
         },
@@ -32,6 +36,10 @@
     "ServerScriptService": {
       "ServerNetwork": {
         "$path": "src/network/Server"
+      },
+
+      "Classes": {
+        "$path": "src/classes/Server"
       },
 
       "Services": {
