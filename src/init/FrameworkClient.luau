@@ -36,7 +36,7 @@ function FrameworkClient.Start(): Promise.Promise
 				Promise.try(function()
 					local module = require(service)
 					debug.setmemorycategory(service.Name)
-					return module:Init()
+					return type(module.Init) == "function" and module:Init() or true
 				end)
 			)
 		end
