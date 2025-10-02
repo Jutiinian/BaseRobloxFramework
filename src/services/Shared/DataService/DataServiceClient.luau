@@ -20,7 +20,7 @@ local initializationSignal = Signal.new()
 
 -- || Public API || --
 local DataServiceClient = {
-	_Data = nil :: DataProfile.DataProfile<any>?,
+	_data = nil :: DataProfile.DataProfile<any>?,
 }
 
 --[[
@@ -44,7 +44,7 @@ function DataServiceClient.Init(self: DataServiceClient): () -> ()
 		end
 
 		self:WaitForData()
-		self._Data:SetValue(data.Key.value, data.Value)
+		self._data:SetValue(data.Key.value, data.Value)
 	end)
 
 	return function()
@@ -60,7 +60,7 @@ end
 ]]
 function DataServiceClient.GetValue(self: DataServiceClient, indexPath: IndexPath?): any
 	self:WaitForData()
-	return self._Data:GetValue(indexPath)
+	return self._data:GetValue(indexPath)
 end
 
 -- TODO: Maybe add set and update functions
@@ -72,7 +72,7 @@ end
 	- The signal passes the new value when it changes
 ]]
 function DataServiceClient.GetValueChangedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.Signal<any>
-	return self._Data:GetValueChangedSignal(indexPath)
+	return self._data:GetValueChangedSignal(indexPath)
 end
 
 --[[
@@ -81,11 +81,8 @@ end
 	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
 	- Fires with two parameters: the index that changed, and its new value
 ]]
-function DataServiceClient.GetChildChangedSignal(
-	self: DataServiceClient,
-	indexPath: IndexPath
-): Signal.Signal<string, any>
-	return self._Data:GetChildChangedSignal(indexPath)
+function DataServiceClient.GetChildChangedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.Signal<string, any>
+	return self._data:GetChildChangedSignal(indexPath)
 end
 
 --[[
@@ -93,17 +90,17 @@ end
 	- Returns immediately if the data is already available.
 ]]
 function DataServiceClient.WaitForData(self: DataServiceClient): DataProfile.DataProfile<any>
-	local data = self._Data
+	local data = self._data
 	if data then
 		return data
 	end
 
 	initializationSignal:Wait()
-	return self._Data
+	return self._data
 end
 
 function DataServiceClient._InitializeData(self: DataServiceClient, data: any)
-	assert(self._Data == nil, "Data already initialized on the client")
+	assert(self._data == nil, "Data already initialized on the client")
 	self._Data = DataProfile.new(data)
 	initializationSignal:Fire()
 end
