@@ -25,7 +25,7 @@
       },
 
       "FrameworkClient": {
-        "$path": "src/init/FrameworkClient.luau"
+        "$path": "src/start/FrameworkClient.luau"
       }
     },
 
@@ -47,18 +47,18 @@
       },
 
       "FrameworkServer": {
-        "$path": "src/init/FrameworkServer.luau"
+        "$path": "src/start/FrameworkServer.luau"
       },
 
-      "ServerInitializer": {
-        "$path": "src/init/Init.server.luau"
+      "ServerBootstrap": {
+        "$path": "src/start/ServerBootstrap.server.luau"
       }
     },
 
     "StarterPlayer": {
       "StarterPlayerScripts": {
-        "ClientInitializer": {
-          "$path": "src/init/Init.client.luau"
+        "ClientBootstrap": {
+          "$path": "src/start/ClientBootstrap.client.luau"
         }
       }
     }
