@@ -145,6 +145,9 @@ end
 function ObjectPool.Destroy<T>(self: ObjectPool<T>)
 	self:Clear(true)
 
+	self.OnObjectReturned:Destroy()
+	self.OnObjectCheckedOut:Destroy()
+
 	table.clear(self :: any)
 	setmetatable(self :: any, nil)
 end
