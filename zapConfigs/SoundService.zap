@@ -6,5 +6,3 @@ opt casing = "PascalCase"
 
 opt yield_type = "promise"
 opt async_lib = "require(game:GetService('ReplicatedStorage').Packages.Promise)"
-
-opt disable_fire_all = true
