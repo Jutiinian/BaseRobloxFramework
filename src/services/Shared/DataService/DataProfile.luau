@@ -1,6 +1,3 @@
---!nocheck
--- Disabled type checking due to false positives in some areas
-
 -- || Services || --
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -200,8 +197,8 @@ function DataProfile.Destroy<T>(self: DataProfile<T>): ()
 
 	self._signals = nil :: any
 
-	table.clear(self)
-	setmetatable(self, nil :: any)
+	table.clear(self :: any)
+	setmetatable(self :: any, nil)
 end
 
 export type DataProfile<T> = typeof(setmetatable(
