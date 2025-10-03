@@ -124,6 +124,28 @@ function FormatUtil.FormatPercent(decimal: number, decimalPlaces: number?): stri
 end
 
 --[[
+    Formats a number with commas as thousands separators.
+    - Handles negative numbers and optional decimal parts.
+    - Example: 1234567.89 → "1,234,567.89"
+]]
+function FormatUtil.AddCommasToNumber(num: number): string
+	local str = tostring(num)
+	local sign = ""
+
+	if str:sub(1, 1) == "-" then
+		sign = "-"
+		str = str:sub(2)
+	end
+
+	local intPart, fracPart = str:match("^(%d+)(%.%d+)?$")
+	local revInt = (intPart :: string):reverse()
+
+	local formatted = revInt:gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+
+	return sign .. formatted .. (fracPart or "")
+end
+
+--[[
     Converts bytes into a human-readable format.
     - Supports B, KB, MB, GB, TB, PB.
     - decimalPlaces: optional, defaults to 2
