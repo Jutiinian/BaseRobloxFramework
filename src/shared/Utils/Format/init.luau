@@ -19,7 +19,7 @@ function FormatUtil.AbbreviateNumber(number: number, decimalPlaces: number?): st
 	decimalPlaces = decimalPlaces or 2
 	local absNumber = number >= 0 and number or -number
 	local sign = number < 0 and "-" or ""
-	local suffixes = { "K", "M", "B", "T", "aa", "ab", "ac", "ad", "ae" }
+	local suffixes = require(script.Suffixes)
 
 	for i = #suffixes, 1, -1 do
 		local threshold = 10 ^ (i * 3)
