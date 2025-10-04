@@ -35,6 +35,8 @@ function DataServiceClient.Init(self: DataServiceClient): () -> ()
 			return
 		end
 
+		print(data)
+
 		self:_InitializeData(data)
 	end)
 
