@@ -146,6 +146,7 @@ local remotes = ReplicatedStorage:WaitForChild("ZAP")
 local reliable = remotes:WaitForChild("DataService_RELIABLE")
 assert(reliable:IsA("RemoteEvent"), "Expected DataService_RELIABLE to be a RemoteEvent")
 
+export type Value = (((number) | (boolean) | (string) | ((unknown)))?)
 export type indexPath = ({
 	["Type"]: "String",
 	["value"]: (string),
@@ -153,7 +154,6 @@ export type indexPath = ({
 	["Type"]: "Table",
 	["value"]: ({ (string) }),
 })
-export type Value = (((number) | (boolean) | (string) | ({ (string) }) | ((unknown)))?)
 
 local function SendEvents()
 	if outgoing_used ~= 0 then
@@ -196,9 +196,17 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 					key_1 = buffer.readstring(incoming_buff, read(len_1), len_1)
 					assert(utf8.len(key_1) ~= nil, "value is not valid utf-8")
 					if bit32.btest(bool_2, 0b0000000000000001) then
+						val_1 = buffer.readf64(incoming_buff, read(8))
+					elseif bit32.btest(bool_2, 0b0000000000000010) then
+						val_1 = bit32.btest(bool_2, 0b0000000000100000)
+					elseif bit32.btest(bool_2, 0b0000000000000100) then
+						local len_2 = buffer.readu16(incoming_buff, read(2))
+						val_1 = buffer.readstring(incoming_buff, read(len_2), len_2)
+						assert(utf8.len(val_1) ~= nil, "value is not valid utf-8")
+					elseif bit32.btest(bool_2, 0b0000000000001000) then
 						incoming_ipos = incoming_ipos + 1
 						val_1 = incoming_inst[incoming_ipos]
-					else
+					elseif bit32.btest(bool_2, 0b0000000000010000) then
 						val_1 = nil
 					end
 					value[key_1] = val_1
@@ -218,17 +226,17 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 			value = {  }
 			if bit32.btest(bool_3, 0b0000000000000001) then
 				value["Key"] = { ["Type"] = "String" }
-				local len_2 = buffer.readu16(incoming_buff, read(2))
-				value["Key"]["value"] = buffer.readstring(incoming_buff, read(len_2), len_2)
+				local len_3 = buffer.readu16(incoming_buff, read(2))
+				value["Key"]["value"] = buffer.readstring(incoming_buff, read(len_3), len_3)
 				assert(utf8.len(value["Key"]["value"]) ~= nil, "value is not valid utf-8")
 			else
 				value["Key"] = { ["Type"] = "Table" }
-				local len_3 = buffer.readu16(incoming_buff, read(2))
-				value["Key"]["value"] = table.create(len_3)
-				for i_1 = 1, len_3 do
+				local len_4 = buffer.readu16(incoming_buff, read(2))
+				value["Key"]["value"] = table.create(len_4)
+				for i_1 = 1, len_4 do
 					local val_2
-					local len_4 = buffer.readu16(incoming_buff, read(2))
-					val_2 = buffer.readstring(incoming_buff, read(len_4), len_4)
+					local len_5 = buffer.readu16(incoming_buff, read(2))
+					val_2 = buffer.readstring(incoming_buff, read(len_5), len_5)
 					assert(utf8.len(val_2) ~= nil, "value is not valid utf-8")
 					value["Key"]["value"][i_1] = val_2
 				end
@@ -236,25 +244,15 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 			if bit32.btest(bool_3, 0b0000000000000010) then
 				value["Value"] = buffer.readf64(incoming_buff, read(8))
 			elseif bit32.btest(bool_3, 0b0000000000000100) then
-				value["Value"] = bit32.btest(bool_3, 0b0000000010000000)
+				value["Value"] = bit32.btest(bool_3, 0b0000000001000000)
 			elseif bit32.btest(bool_3, 0b0000000000001000) then
-				local len_5 = buffer.readu16(incoming_buff, read(2))
-				value["Value"] = buffer.readstring(incoming_buff, read(len_5), len_5)
+				local len_6 = buffer.readu16(incoming_buff, read(2))
+				value["Value"] = buffer.readstring(incoming_buff, read(len_6), len_6)
 				assert(utf8.len(value["Value"]) ~= nil, "value is not valid utf-8")
 			elseif bit32.btest(bool_3, 0b0000000000010000) then
-				local len_6 = buffer.readu16(incoming_buff, read(2))
-				value["Value"] = table.create(len_6)
-				for i_2 = 1, len_6 do
-					local val_3
-					local len_7 = buffer.readu16(incoming_buff, read(2))
-					val_3 = buffer.readstring(incoming_buff, read(len_7), len_7)
-					assert(utf8.len(val_3) ~= nil, "value is not valid utf-8")
-					value["Value"][i_2] = val_3
-				end
-			elseif bit32.btest(bool_3, 0b0000000000100000) then
 				incoming_ipos = incoming_ipos + 1
 				value["Value"] = incoming_inst[incoming_ipos]
-			elseif bit32.btest(bool_3, 0b0000000001000000) then
+			elseif bit32.btest(bool_3, 0b0000000000100000) then
 				value["Value"] = nil
 			end
 			if reliable_events[1] then
@@ -276,7 +274,7 @@ table.freeze(polling_queues_unreliable)
 local returns = {
 	SendEvents = SendEvents,
 	InitialDataSync = {
-		SetCallback = function(Callback: (Value: ({ [(string)]: ((unknown)) })) -> ()): () -> ()
+		SetCallback = function(Callback: (Value: ({ [(string)]: (((number) | (boolean) | (string) | ((unknown)))?) })) -> ()): () -> ()
 			reliable_events[0] = Callback
 			for _, value in reliable_event_queue[0] do
 				task.spawn(Callback, value)
@@ -296,7 +294,7 @@ local returns = {
 				["Type"]: "Table",
 				["value"]: ({ (string) }),
 			}),
-			["Value"]: (((number) | (boolean) | (string) | ({ (string) }) | ((unknown)))?),
+			["Value"]: (((number) | (boolean) | (string) | ((unknown)))?),
 		})) -> ()): () -> ()
 			reliable_events[1] = Callback
 			for _, value in reliable_event_queue[1] do

@@ -9,25 +9,24 @@ opt async_lib = "require(game:GetService('ReplicatedStorage').Packages.Promise)"
 
 opt disable_fire_all = true
 
+type Value = (
+	f64
+	| boolean
+	| string.utf8
+	| unknown
+)
+
 event InitialDataSync = {
 	from: Server,
 	type: Reliable,
 	call: SingleAsync,
-	data: map { [string.utf8]: unknown },
+	data: map { [string.utf8]: Value },
 }
 
 type indexPath = enum "Type" {
     String { value: string.utf8 },
     Table { value: string.utf8[] },
 }
-
-type Value = (
-	f64
-	| boolean
-	| string.utf8
-	| string.utf8[]
-	| unknown
-)
 
 event DataUpdate = {
 	from: Server,
