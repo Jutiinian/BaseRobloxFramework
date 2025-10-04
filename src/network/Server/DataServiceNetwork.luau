@@ -184,6 +184,7 @@ export type indexPath = ({
 	["Type"]: "Table",
 	["value"]: ({ (string) }),
 })
+export type Value = (((number) | (boolean) | (string) | ({ (string) }) | ((unknown)))?)
 
 local function SendEvents()
 	for player, outgoing in player_map do
@@ -382,7 +383,7 @@ local returns = {
 				["Type"]: "Table",
 				["value"]: ({ (string) }),
 			}),
-			["Value"]: ((unknown)),
+			["Value"]: (((number) | (boolean) | (string) | ({ (string) }) | ((unknown)))?),
 		}))
 			load_player(Player)
 			alloc(1)
@@ -414,8 +415,42 @@ local returns = {
 			else
 				error("Invalid variant")
 			end
-			if Value["Value"] ~= nil then
+			local ty_name_1 = typeof(Value["Value"])
+			if ty_name_1 == "number" then
 				bool_9 = bit32.bor(bool_9, 0b0000000000000010)
+				alloc(8)
+				buffer.writef64(outgoing_buff, outgoing_apos, Value["Value"])
+			elseif ty_name_1 == "boolean" then
+				bool_9 = bit32.bor(bool_9, 0b0000000000000100)
+				if Value["Value"] then
+					bool_9 = bit32.bor(bool_9, 0b0000000010000000)
+				end
+			elseif ty_name_1 == "string" then
+				bool_9 = bit32.bor(bool_9, 0b0000000000001000)
+				local len_12 = #Value["Value"]
+				assert(utf8.len(Value["Value"]) ~= nil, "value is not valid utf-8")
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_12)
+				alloc(len_12)
+				buffer.writestring(outgoing_buff, outgoing_apos, Value["Value"], len_12)
+			elseif ty_name_1 == "table" then
+				bool_9 = bit32.bor(bool_9, 0b0000000000010000)
+				local len_13 = #Value["Value"]
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_13)
+				for i_2 = 1, len_13 do
+					local val_2 = Value["Value"][i_2]
+					local len_14 = #val_2
+					assert(utf8.len(val_2) ~= nil, "value is not valid utf-8")
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_14)
+					alloc(len_14)
+					buffer.writestring(outgoing_buff, outgoing_apos, val_2, len_14)
+				end
+			elseif Value["Value"] == nil then
+				bool_9 = bit32.bor(bool_9, 0b0000000001000000)
+			else
+				bool_9 = bit32.bor(bool_9, 0b0000000000100000)
 				table.insert(outgoing_inst, Value["Value"])
 			end
 			buffer.writeu8(outgoing_buff, bool_9_pos_1, bool_9)
@@ -429,7 +464,7 @@ local returns = {
 				["Type"]: "Table",
 				["value"]: ({ (string) }),
 			}),
-			["Value"]: ((unknown)),
+			["Value"]: (((number) | (boolean) | (string) | ({ (string) }) | ((unknown)))?),
 		}))
 			load_empty()
 			alloc(1)
@@ -438,62 +473,6 @@ local returns = {
 			local bool_10_pos_1 = alloc(1)
 			if Value["Key"]["Type"] == "String" then
 				bool_10 = bit32.bor(bool_10, 0b0000000000000001)
-				local len_12 = #Value["Key"]["value"]
-				assert(utf8.len(Value["Key"]["value"]) ~= nil, "value is not valid utf-8")
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_12)
-				alloc(len_12)
-				buffer.writestring(outgoing_buff, outgoing_apos, Value["Key"]["value"], len_12)
-			elseif Value["Key"]["Type"] == "Table" then
-				local _
-				local len_13 = #Value["Key"]["value"]
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_13)
-				for i_2 = 1, len_13 do
-					local val_2 = Value["Key"]["value"][i_2]
-					local len_14 = #val_2
-					assert(utf8.len(val_2) ~= nil, "value is not valid utf-8")
-					alloc(2)
-					buffer.writeu16(outgoing_buff, outgoing_apos, len_14)
-					alloc(len_14)
-					buffer.writestring(outgoing_buff, outgoing_apos, val_2, len_14)
-				end
-			else
-				error("Invalid variant")
-			end
-			if Value["Value"] ~= nil then
-				bool_10 = bit32.bor(bool_10, 0b0000000000000010)
-				table.insert(outgoing_inst, Value["Value"])
-			end
-			buffer.writeu8(outgoing_buff, bool_10_pos_1, bool_10)
-			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
-			for _, player in Players:GetPlayers() do
-				if player ~= Except then
-					load_player(player)
-					alloc(used)
-					buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
-					table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
-					player_map[player] = save()
-				end
-			end
-		end,
-		FireList = function(List: { [unknown]: Player }, Value: ({
-			["Key"]: ({
-				["Type"]: "String",
-				["value"]: (string),
-			} | {
-				["Type"]: "Table",
-				["value"]: ({ (string) }),
-			}),
-			["Value"]: ((unknown)),
-		}))
-			load_empty()
-			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-			local bool_11 = 0
-			local bool_11_pos_1 = alloc(1)
-			if Value["Key"]["Type"] == "String" then
-				bool_11 = bit32.bor(bool_11, 0b0000000000000001)
 				local len_15 = #Value["Key"]["value"]
 				assert(utf8.len(Value["Key"]["value"]) ~= nil, "value is not valid utf-8")
 				alloc(2)
@@ -517,8 +496,132 @@ local returns = {
 			else
 				error("Invalid variant")
 			end
-			if Value["Value"] ~= nil then
+			local ty_name_2 = typeof(Value["Value"])
+			if ty_name_2 == "number" then
+				bool_10 = bit32.bor(bool_10, 0b0000000000000010)
+				alloc(8)
+				buffer.writef64(outgoing_buff, outgoing_apos, Value["Value"])
+			elseif ty_name_2 == "boolean" then
+				bool_10 = bit32.bor(bool_10, 0b0000000000000100)
+				if Value["Value"] then
+					bool_10 = bit32.bor(bool_10, 0b0000000010000000)
+				end
+			elseif ty_name_2 == "string" then
+				bool_10 = bit32.bor(bool_10, 0b0000000000001000)
+				local len_18 = #Value["Value"]
+				assert(utf8.len(Value["Value"]) ~= nil, "value is not valid utf-8")
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_18)
+				alloc(len_18)
+				buffer.writestring(outgoing_buff, outgoing_apos, Value["Value"], len_18)
+			elseif ty_name_2 == "table" then
+				bool_10 = bit32.bor(bool_10, 0b0000000000010000)
+				local len_19 = #Value["Value"]
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_19)
+				for i_4 = 1, len_19 do
+					local val_4 = Value["Value"][i_4]
+					local len_20 = #val_4
+					assert(utf8.len(val_4) ~= nil, "value is not valid utf-8")
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_20)
+					alloc(len_20)
+					buffer.writestring(outgoing_buff, outgoing_apos, val_4, len_20)
+				end
+			elseif Value["Value"] == nil then
+				bool_10 = bit32.bor(bool_10, 0b0000000001000000)
+			else
+				bool_10 = bit32.bor(bool_10, 0b0000000000100000)
+				table.insert(outgoing_inst, Value["Value"])
+			end
+			buffer.writeu8(outgoing_buff, bool_10_pos_1, bool_10)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for _, player in Players:GetPlayers() do
+				if player ~= Except then
+					load_player(player)
+					alloc(used)
+					buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+					table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+					player_map[player] = save()
+				end
+			end
+		end,
+		FireList = function(List: { [unknown]: Player }, Value: ({
+			["Key"]: ({
+				["Type"]: "String",
+				["value"]: (string),
+			} | {
+				["Type"]: "Table",
+				["value"]: ({ (string) }),
+			}),
+			["Value"]: (((number) | (boolean) | (string) | ({ (string) }) | ((unknown)))?),
+		}))
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+			local bool_11 = 0
+			local bool_11_pos_1 = alloc(1)
+			if Value["Key"]["Type"] == "String" then
+				bool_11 = bit32.bor(bool_11, 0b0000000000000001)
+				local len_21 = #Value["Key"]["value"]
+				assert(utf8.len(Value["Key"]["value"]) ~= nil, "value is not valid utf-8")
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_21)
+				alloc(len_21)
+				buffer.writestring(outgoing_buff, outgoing_apos, Value["Key"]["value"], len_21)
+			elseif Value["Key"]["Type"] == "Table" then
+				local _
+				local len_22 = #Value["Key"]["value"]
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_22)
+				for i_5 = 1, len_22 do
+					local val_5 = Value["Key"]["value"][i_5]
+					local len_23 = #val_5
+					assert(utf8.len(val_5) ~= nil, "value is not valid utf-8")
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_23)
+					alloc(len_23)
+					buffer.writestring(outgoing_buff, outgoing_apos, val_5, len_23)
+				end
+			else
+				error("Invalid variant")
+			end
+			local ty_name_3 = typeof(Value["Value"])
+			if ty_name_3 == "number" then
 				bool_11 = bit32.bor(bool_11, 0b0000000000000010)
+				alloc(8)
+				buffer.writef64(outgoing_buff, outgoing_apos, Value["Value"])
+			elseif ty_name_3 == "boolean" then
+				bool_11 = bit32.bor(bool_11, 0b0000000000000100)
+				if Value["Value"] then
+					bool_11 = bit32.bor(bool_11, 0b0000000010000000)
+				end
+			elseif ty_name_3 == "string" then
+				bool_11 = bit32.bor(bool_11, 0b0000000000001000)
+				local len_24 = #Value["Value"]
+				assert(utf8.len(Value["Value"]) ~= nil, "value is not valid utf-8")
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_24)
+				alloc(len_24)
+				buffer.writestring(outgoing_buff, outgoing_apos, Value["Value"], len_24)
+			elseif ty_name_3 == "table" then
+				bool_11 = bit32.bor(bool_11, 0b0000000000010000)
+				local len_25 = #Value["Value"]
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_25)
+				for i_6 = 1, len_25 do
+					local val_6 = Value["Value"][i_6]
+					local len_26 = #val_6
+					assert(utf8.len(val_6) ~= nil, "value is not valid utf-8")
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_26)
+					alloc(len_26)
+					buffer.writestring(outgoing_buff, outgoing_apos, val_6, len_26)
+				end
+			elseif Value["Value"] == nil then
+				bool_11 = bit32.bor(bool_11, 0b0000000001000000)
+			else
+				bool_11 = bit32.bor(bool_11, 0b0000000000100000)
 				table.insert(outgoing_inst, Value["Value"])
 			end
 			buffer.writeu8(outgoing_buff, bool_11_pos_1, bool_11)
@@ -539,7 +642,7 @@ local returns = {
 				["Type"]: "Table",
 				["value"]: ({ (string) }),
 			}),
-			["Value"]: ((unknown)),
+			["Value"]: (((number) | (boolean) | (string) | ({ (string) }) | ((unknown)))?),
 		}))
 			load_empty()
 			alloc(1)
@@ -548,31 +651,65 @@ local returns = {
 			local bool_12_pos_1 = alloc(1)
 			if Value["Key"]["Type"] == "String" then
 				bool_12 = bit32.bor(bool_12, 0b0000000000000001)
-				local len_18 = #Value["Key"]["value"]
+				local len_27 = #Value["Key"]["value"]
 				assert(utf8.len(Value["Key"]["value"]) ~= nil, "value is not valid utf-8")
 				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_18)
-				alloc(len_18)
-				buffer.writestring(outgoing_buff, outgoing_apos, Value["Key"]["value"], len_18)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_27)
+				alloc(len_27)
+				buffer.writestring(outgoing_buff, outgoing_apos, Value["Key"]["value"], len_27)
 			elseif Value["Key"]["Type"] == "Table" then
 				local _
-				local len_19 = #Value["Key"]["value"]
+				local len_28 = #Value["Key"]["value"]
 				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_19)
-				for i_4 = 1, len_19 do
-					local val_4 = Value["Key"]["value"][i_4]
-					local len_20 = #val_4
-					assert(utf8.len(val_4) ~= nil, "value is not valid utf-8")
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_28)
+				for i_7 = 1, len_28 do
+					local val_7 = Value["Key"]["value"][i_7]
+					local len_29 = #val_7
+					assert(utf8.len(val_7) ~= nil, "value is not valid utf-8")
 					alloc(2)
-					buffer.writeu16(outgoing_buff, outgoing_apos, len_20)
-					alloc(len_20)
-					buffer.writestring(outgoing_buff, outgoing_apos, val_4, len_20)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_29)
+					alloc(len_29)
+					buffer.writestring(outgoing_buff, outgoing_apos, val_7, len_29)
 				end
 			else
 				error("Invalid variant")
 			end
-			if Value["Value"] ~= nil then
+			local ty_name_4 = typeof(Value["Value"])
+			if ty_name_4 == "number" then
 				bool_12 = bit32.bor(bool_12, 0b0000000000000010)
+				alloc(8)
+				buffer.writef64(outgoing_buff, outgoing_apos, Value["Value"])
+			elseif ty_name_4 == "boolean" then
+				bool_12 = bit32.bor(bool_12, 0b0000000000000100)
+				if Value["Value"] then
+					bool_12 = bit32.bor(bool_12, 0b0000000010000000)
+				end
+			elseif ty_name_4 == "string" then
+				bool_12 = bit32.bor(bool_12, 0b0000000000001000)
+				local len_30 = #Value["Value"]
+				assert(utf8.len(Value["Value"]) ~= nil, "value is not valid utf-8")
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_30)
+				alloc(len_30)
+				buffer.writestring(outgoing_buff, outgoing_apos, Value["Value"], len_30)
+			elseif ty_name_4 == "table" then
+				bool_12 = bit32.bor(bool_12, 0b0000000000010000)
+				local len_31 = #Value["Value"]
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_31)
+				for i_8 = 1, len_31 do
+					local val_8 = Value["Value"][i_8]
+					local len_32 = #val_8
+					assert(utf8.len(val_8) ~= nil, "value is not valid utf-8")
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_32)
+					alloc(len_32)
+					buffer.writestring(outgoing_buff, outgoing_apos, val_8, len_32)
+				end
+			elseif Value["Value"] == nil then
+				bool_12 = bit32.bor(bool_12, 0b0000000001000000)
+			else
+				bool_12 = bit32.bor(bool_12, 0b0000000000100000)
 				table.insert(outgoing_inst, Value["Value"])
 			end
 			buffer.writeu8(outgoing_buff, bool_12_pos_1, bool_12)

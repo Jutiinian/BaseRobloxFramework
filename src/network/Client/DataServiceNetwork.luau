@@ -153,6 +153,7 @@ export type indexPath = ({
 	["Type"]: "Table",
 	["value"]: ({ (string) }),
 })
+export type Value = (((number) | (boolean) | (string) | ({ (string) }) | ((unknown)))?)
 
 local function SendEvents()
 	if outgoing_used ~= 0 then
@@ -233,9 +234,27 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 				end
 			end
 			if bit32.btest(bool_3, 0b0000000000000010) then
+				value["Value"] = buffer.readf64(incoming_buff, read(8))
+			elseif bit32.btest(bool_3, 0b0000000000000100) then
+				value["Value"] = bit32.btest(bool_3, 0b0000000010000000)
+			elseif bit32.btest(bool_3, 0b0000000000001000) then
+				local len_5 = buffer.readu16(incoming_buff, read(2))
+				value["Value"] = buffer.readstring(incoming_buff, read(len_5), len_5)
+				assert(utf8.len(value["Value"]) ~= nil, "value is not valid utf-8")
+			elseif bit32.btest(bool_3, 0b0000000000010000) then
+				local len_6 = buffer.readu16(incoming_buff, read(2))
+				value["Value"] = table.create(len_6)
+				for i_2 = 1, len_6 do
+					local val_3
+					local len_7 = buffer.readu16(incoming_buff, read(2))
+					val_3 = buffer.readstring(incoming_buff, read(len_7), len_7)
+					assert(utf8.len(val_3) ~= nil, "value is not valid utf-8")
+					value["Value"][i_2] = val_3
+				end
+			elseif bit32.btest(bool_3, 0b0000000000100000) then
 				incoming_ipos = incoming_ipos + 1
 				value["Value"] = incoming_inst[incoming_ipos]
-			else
+			elseif bit32.btest(bool_3, 0b0000000001000000) then
 				value["Value"] = nil
 			end
 			if reliable_events[1] then
@@ -277,7 +296,7 @@ local returns = {
 				["Type"]: "Table",
 				["value"]: ({ (string) }),
 			}),
-			["Value"]: ((unknown)),
+			["Value"]: (((number) | (boolean) | (string) | ({ (string) }) | ((unknown)))?),
 		})) -> ()): () -> ()
 			reliable_events[1] = Callback
 			for _, value in reliable_event_queue[1] do

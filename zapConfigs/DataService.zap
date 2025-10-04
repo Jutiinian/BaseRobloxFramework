@@ -21,12 +21,20 @@ type indexPath = enum "Type" {
     Table { value: string.utf8[] },
 }
 
+type Value = (
+	f64
+	| boolean
+	| string.utf8
+	| string.utf8[]
+	| unknown
+)
+
 event DataUpdate = {
 	from: Server,
 	type: Reliable,
 	call: SingleAsync,
 	data: struct {
 		Key: indexPath,
-		Value: unknown
+		Value: Value
 	}
 }
