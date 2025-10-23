@@ -31,6 +31,8 @@ local DataServiceServer = {
 	_waitSignals = {} :: { [Player]: Signal.Signal<any> },
 }
 
+export type DataServiceServer = typeof(DataServiceServer)
+
 --[[
 	Start the DataService on the server
 	- Loads data of all players already in game
@@ -239,7 +241,5 @@ function DataServiceServer._InitializePlayer(self: DataServiceServer, player: Pl
 		self._waitSignals[player] = nil
 	end
 end
-
-export type DataServiceServer = typeof(DataServiceServer)
 
 return DataServiceServer

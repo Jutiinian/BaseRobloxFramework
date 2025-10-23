@@ -23,6 +23,8 @@ local DataServiceClient = {
 	_data = nil :: DataProfile.DataProfile<any>?,
 }
 
+export type DataServiceClient = typeof(DataServiceClient)
+
 --[[
 	Start the DataService on the client
 	- Listens for data to be sent from the server
@@ -106,7 +108,5 @@ function DataServiceClient._InitializeData(self: DataServiceClient, data: any)
 	self._Data = DataProfile.new(data)
 	initializationSignal:Fire()
 end
-
-export type DataServiceClient = typeof(DataServiceClient)
 
 return DataServiceClient
