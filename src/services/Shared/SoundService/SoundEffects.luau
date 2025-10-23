@@ -1,5 +1,5 @@
 --[[
-    Module that holds all the type definitions for Sound Effects and holds createSoundEffects function
+    Module that holds all the type definitions for Sound Effects and holds/returns applySoundEffects function
 ]]
 
 export type Chorus = {
