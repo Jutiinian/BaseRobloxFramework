@@ -8,22 +8,23 @@ local Signal = require(ReplicatedStorage.Packages.Signal)
 local AUTO_CLEAN_INTERVAL = 30
 local pathCache = {} :: { [string]: { string } }
 
+local strFind = string.find
+local strSplit = string.split
+
 export type IndexPath = string | { string }
 
 -- || Private Functions || --
 local function normalizePath(indexPath: IndexPath): { string } | string
-	if type(indexPath) == "string" then
-		if pathCache[indexPath] or string.find(indexPath, ".", 1, true) then
-			local path = pathCache[indexPath]
+	if typeof(indexPath) == "string" then
+		local cached = pathCache[indexPath]
+		if cached then
+			return cached
+		end
 
-			if not path then
-				path = string.split(indexPath, ".")
-				pathCache[indexPath] = path
-			end
-
-			return path
-		else
-			return indexPath
+		if strFind(indexPath, ".", 1, true) then
+			local splitPath = strSplit(indexPath, ".")
+			pathCache[indexPath] = splitPath
+			return splitPath
 		end
 	end
 
