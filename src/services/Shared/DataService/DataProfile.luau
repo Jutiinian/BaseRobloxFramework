@@ -42,6 +42,18 @@ end
 local DataProfile = {}
 DataProfile.__index = DataProfile
 
+export type DataProfile<T> = typeof(setmetatable(
+	{} :: {
+		_data: T,
+		_autoCleanThread: thread?,
+		_signals: {
+			ValueChanged: { [string]: Signal.Signal<any> },
+			ChildChanged: { [string]: Signal.Signal<string, any> },
+		},
+	},
+	DataProfile
+))
+
 function DataProfile.new<T>(data: T): DataProfile<T>
 	local self = {
 		_data = data,
@@ -200,17 +212,5 @@ function DataProfile.Destroy<T>(self: DataProfile<T>): ()
 	table.clear(self :: any)
 	setmetatable(self :: any, nil)
 end
-
-export type DataProfile<T> = typeof(setmetatable(
-	{} :: {
-		_data: T,
-		_autoCleanThread: thread?,
-		_signals: {
-			ValueChanged: { [string]: Signal.Signal<any> },
-			ChildChanged: { [string]: Signal.Signal<string, any> },
-		},
-	},
-	DataProfile
-))
 
 return DataProfile
