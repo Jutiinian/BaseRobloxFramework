@@ -12,6 +12,8 @@ local SoundRegistry = require(ReplicatedStorage.Shared.Assets.SoundRegistry)
 local CreateTween = require(ReplicatedStorage.Shared.Utils.CreateTween)
 local ObjectPool = require(ReplicatedStorage.Shared.Classes.ObjectPool)
 
+local SoundServiceNetwork = require(ReplicatedStorage.Shared.ClientNetwork.SoundServiceNetwork)
+
 -- || Variables || --
 local partTemplate = Instance.new("Part")
 do
@@ -112,6 +114,14 @@ function SoundServiceClient.Init(self: SoundServiceClient)
 	self._soundPool = soundPool
 	self._partPool = partPool
 	self._soundGroups = groupsTable
+
+	SoundServiceNetwork.ReplicateSound.SetCallback(function(data)
+		if data.Position ~= nil then
+			self:PlaySoundAt(data.SoundName, data.Position, data.Properties)
+		else
+			self:PlaySound(data.SoundName, data.Properties)
+		end
+	end)
 end
 
 --[[
