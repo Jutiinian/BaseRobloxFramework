@@ -92,12 +92,18 @@ type soundProperties = struct {
 	DenyBaseProperties: boolean?,
 }
 
-event PlaySound = {
+type position = (
+    vector(f32, f32, f32)
+    | CFrame
+)
+
+event ReplicateSound = {
     from: Server,
     type: Reliable,
     call: SingleAsync,
     data: struct {
         SoundName: string.utf8,
+        Position: position?,
         Properties: soundProperties?,
     }
 }
