@@ -130,7 +130,7 @@ if not RunService:IsRunning() then
 	local noop = function() end
 	return table.freeze({
 		SendEvents = noop,
-		PlaySound = table.freeze({
+		ReplicateSound = table.freeze({
 			Fire = noop,
 			FireAll = noop,
 			FireExcept = noop,
@@ -172,6 +172,21 @@ end
 Players.PlayerRemoving:Connect(function(player)
 	player_map[player] = nil
 end)
+export type Compressor = ({
+	["Attack"]: ((number)?),
+	["GainMakeup"]: ((number)?),
+	["Priority"]: ((number)?),
+	["Ratio"]: ((number)?),
+	["Release"]: ((number)?),
+	["Threshold"]: ((number)?),
+})
+export type Tremolo = ({
+	["Depth"]: ((number)?),
+	["Duty"]: ((number)?),
+	["Frequency"]: ((number)?),
+	["Priority"]: ((number)?),
+})
+export type position = ((vector) | (CFrame))
 export type Reverb = ({
 	["DecayTime"]: ((number)?),
 	["Density"]: ((number)?),
@@ -186,8 +201,8 @@ export type Equalizer = ({
 	["MidGain"]: ((number)?),
 	["Priority"]: ((number)?),
 })
-export type PitchShift = ({
-	["Octave"]: ((number)?),
+export type Distortion = ({
+	["Level"]: ((number)?),
 	["Priority"]: ((number)?),
 })
 export type soundProperties = ({
@@ -256,35 +271,21 @@ export type soundProperties = ({
 	})?),
 	["DenyBaseProperties"]: ((boolean)?),
 })
-export type Distortion = ({
-	["Level"]: ((number)?),
-	["Priority"]: ((number)?),
-})
-export type Compressor = ({
-	["Attack"]: ((number)?),
-	["GainMakeup"]: ((number)?),
-	["Priority"]: ((number)?),
-	["Ratio"]: ((number)?),
-	["Release"]: ((number)?),
-	["Threshold"]: ((number)?),
-})
 export type Flange = ({
 	["Depth"]: ((number)?),
 	["Mix"]: ((number)?),
 	["Priority"]: ((number)?),
 	["Rate"]: ((number)?),
 })
+export type PitchShift = ({
+	["Octave"]: ((number)?),
+	["Priority"]: ((number)?),
+})
 export type Chorus = ({
 	["Depth"]: ((number)?),
 	["Mix"]: ((number)?),
 	["Priority"]: ((number)?),
 	["Rate"]: ((number)?),
-})
-export type Tremolo = ({
-	["Depth"]: ((number)?),
-	["Duty"]: ((number)?),
-	["Frequency"]: ((number)?),
-	["Priority"]: ((number)?),
 })
 export type Echo = ({
 	["Delay"]: ((number)?),
@@ -317,9 +318,10 @@ table.freeze(polling_queues_unreliable)
 
 local returns = {
 	SendEvents = SendEvents,
-	PlaySound = {
+	ReplicateSound = {
 		Fire = function(Player: Player, Value: ({
 			["SoundName"]: (string),
+			["Position"]: (((vector) | (CFrame))?),
 			["Properties"]: (({
 				["Group"]: ((string)?),
 				["Parent"]: ((Instance)?),
@@ -397,17 +399,47 @@ local returns = {
 			local bool_3 = 0
 			local bool_3_pos_1 = alloc(2)
 			local bool_4 = 0
-			local bool_4_pos_1 = alloc(1)
+			local bool_4_pos_1 = alloc(2)
 			local len_1 = #Value["SoundName"]
 			assert(utf8.len(Value["SoundName"]) ~= nil, "value is not valid utf-8")
 			alloc(2)
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_1)
 			alloc(len_1)
 			buffer.writestring(outgoing_buff, outgoing_apos, Value["SoundName"], len_1)
-			if Value["Properties"] ~= nil then
+			local ty_name_1 = typeof(Value["Position"])
+			if ty_name_1 == "Vector3" then
 				bool_1 = bit32.bor(bool_1, 0b0000000000000001)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].x)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].y)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].z)
+			elseif ty_name_1 == "CFrame" then
+				bool_1 = bit32.bor(bool_1, 0b0000000000000010)
+				local axis_1, angle_1 = Value["Position"]:ToAxisAngle()
+				axis_1 = axis_1 * angle_1
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].Position.X)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].Position.Y)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].Position.Z)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, axis_1.X)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Y)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Z)
+			elseif Value["Position"] == nil then
+				bool_1 = bit32.bor(bool_1, 0b0000000000000100)
+			else
+				error("Invalid type")
+			end
+			if Value["Properties"] ~= nil then
+				bool_1 = bit32.bor(bool_1, 0b0000000000001000)
 				if Value["Properties"]["Group"] ~= nil then
-					bool_1 = bit32.bor(bool_1, 0b0000000000000010)
+					bool_1 = bit32.bor(bool_1, 0b0000000000010000)
 					local len_2 = #Value["Properties"]["Group"]
 					assert(utf8.len(Value["Properties"]["Group"]) ~= nil, "value is not valid utf-8")
 					alloc(2)
@@ -416,62 +448,62 @@ local returns = {
 					buffer.writestring(outgoing_buff, outgoing_apos, Value["Properties"]["Group"], len_2)
 				end
 				if Value["Properties"]["Parent"] ~= nil then
-					bool_1 = bit32.bor(bool_1, 0b0000000000000100)
+					bool_1 = bit32.bor(bool_1, 0b0000000000100000)
 					table.insert(outgoing_inst, Value["Properties"]["Parent"])
 				end
 				if Value["Properties"]["Volume"] ~= nil then
-					bool_1 = bit32.bor(bool_1, 0b0000000000001000)
+					bool_1 = bit32.bor(bool_1, 0b0000000001000000)
 					assert(Value["Properties"]["Volume"] >= 0, "value is less than 0!")
 					assert(Value["Properties"]["Volume"] <= 1, "value is more than 1!")
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Volume"])
 				end
 				if Value["Properties"]["PlaybackSpeed"] ~= nil then
-					bool_1 = bit32.bor(bool_1, 0b0000000000010000)
+					bool_1 = bit32.bor(bool_1, 0b0000000010000000)
 					assert(Value["Properties"]["PlaybackSpeed"] >= 0, "value is less than 0!")
 					assert(Value["Properties"]["PlaybackSpeed"] <= 15, "value is more than 15!")
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["PlaybackSpeed"])
 				end
 				if Value["Properties"]["PlaybackRegion"] ~= nil then
-					bool_1 = bit32.bor(bool_1, 0b0000000000100000)
+					bool_1 = bit32.bor(bool_1, 0b0000000100000000)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["PlaybackRegion"].x)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["PlaybackRegion"].y)
 				end
 				if Value["Properties"]["RollOff"] ~= nil then
-					bool_1 = bit32.bor(bool_1, 0b0000000001000000)
+					bool_1 = bit32.bor(bool_1, 0b0000001000000000)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["RollOff"].x)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["RollOff"].y)
 				end
 				if Value["Properties"]["Effects"] ~= nil then
-					bool_1 = bit32.bor(bool_1, 0b0000000010000000)
+					bool_1 = bit32.bor(bool_1, 0b0000010000000000)
 					if Value["Properties"]["Effects"]["Chorus"] ~= nil then
-						bool_1 = bit32.bor(bool_1, 0b0000000100000000)
+						bool_1 = bit32.bor(bool_1, 0b0000100000000000)
 						if Value["Properties"]["Effects"]["Chorus"]["Depth"] ~= nil then
-							bool_1 = bit32.bor(bool_1, 0b0000001000000000)
+							bool_1 = bit32.bor(bool_1, 0b0001000000000000)
 							assert(Value["Properties"]["Effects"]["Chorus"]["Depth"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Chorus"]["Depth"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Chorus"]["Depth"])
 						end
 						if Value["Properties"]["Effects"]["Chorus"]["Mix"] ~= nil then
-							bool_1 = bit32.bor(bool_1, 0b0000010000000000)
+							bool_1 = bit32.bor(bool_1, 0b0010000000000000)
 							assert(Value["Properties"]["Effects"]["Chorus"]["Mix"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Chorus"]["Mix"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Chorus"]["Mix"])
 						end
 						if Value["Properties"]["Effects"]["Chorus"]["Priority"] ~= nil then
-							bool_1 = bit32.bor(bool_1, 0b0000100000000000)
+							bool_1 = bit32.bor(bool_1, 0b0100000000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Chorus"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Chorus"]["Rate"] ~= nil then
-							bool_1 = bit32.bor(bool_1, 0b0001000000000000)
+							bool_1 = bit32.bor(bool_1, 0b1000000000000000)
 							assert(Value["Properties"]["Effects"]["Chorus"]["Rate"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Chorus"]["Rate"] <= 20, "value is more than 20!")
 							alloc(4)
@@ -479,41 +511,41 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Compressor"] ~= nil then
-						bool_1 = bit32.bor(bool_1, 0b0010000000000000)
+						bool_2 = bit32.bor(bool_2, 0b0000000000000001)
 						if Value["Properties"]["Effects"]["Compressor"]["Attack"] ~= nil then
-							bool_1 = bit32.bor(bool_1, 0b0100000000000000)
+							bool_2 = bit32.bor(bool_2, 0b0000000000000010)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Attack"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["Attack"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Attack"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["GainMakeup"] ~= nil then
-							bool_1 = bit32.bor(bool_1, 0b1000000000000000)
+							bool_2 = bit32.bor(bool_2, 0b0000000000000100)
 							assert(Value["Properties"]["Effects"]["Compressor"]["GainMakeup"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["GainMakeup"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["GainMakeup"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Priority"] ~= nil then
-							bool_2 = bit32.bor(bool_2, 0b0000000000000001)
+							bool_2 = bit32.bor(bool_2, 0b0000000000001000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Ratio"] ~= nil then
-							bool_2 = bit32.bor(bool_2, 0b0000000000000010)
+							bool_2 = bit32.bor(bool_2, 0b0000000000010000)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Ratio"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Ratio"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Release"] ~= nil then
-							bool_2 = bit32.bor(bool_2, 0b0000000000000100)
+							bool_2 = bit32.bor(bool_2, 0b0000000000100000)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Release"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["Release"] <= 5, "value is more than 5!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Release"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Threshold"] ~= nil then
-							bool_2 = bit32.bor(bool_2, 0b0000000000001000)
+							bool_2 = bit32.bor(bool_2, 0b0000000001000000)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Threshold"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["Threshold"] <= 0, "value is more than 0!")
 							alloc(4)
@@ -521,49 +553,49 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Distortion"] ~= nil then
-						bool_2 = bit32.bor(bool_2, 0b0000000000010000)
+						bool_2 = bit32.bor(bool_2, 0b0000000010000000)
 						if Value["Properties"]["Effects"]["Distortion"]["Level"] ~= nil then
-							bool_2 = bit32.bor(bool_2, 0b0000000000100000)
+							bool_2 = bit32.bor(bool_2, 0b0000000100000000)
 							assert(Value["Properties"]["Effects"]["Distortion"]["Level"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Distortion"]["Level"])
 						end
 						if Value["Properties"]["Effects"]["Distortion"]["Priority"] ~= nil then
-							bool_2 = bit32.bor(bool_2, 0b0000000001000000)
+							bool_2 = bit32.bor(bool_2, 0b0000001000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Distortion"]["Priority"])
 						end
 					end
 					if Value["Properties"]["Effects"]["Echo"] ~= nil then
-						bool_2 = bit32.bor(bool_2, 0b0000000010000000)
+						bool_2 = bit32.bor(bool_2, 0b0000010000000000)
 						if Value["Properties"]["Effects"]["Echo"]["Delay"] ~= nil then
-							bool_2 = bit32.bor(bool_2, 0b0000000100000000)
+							bool_2 = bit32.bor(bool_2, 0b0000100000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["Delay"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["Delay"] <= 5, "value is more than 5!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["Delay"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["DryLevel"] ~= nil then
-							bool_2 = bit32.bor(bool_2, 0b0000001000000000)
+							bool_2 = bit32.bor(bool_2, 0b0001000000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["DryLevel"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["DryLevel"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["DryLevel"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["Feedback"] ~= nil then
-							bool_2 = bit32.bor(bool_2, 0b0000010000000000)
+							bool_2 = bit32.bor(bool_2, 0b0010000000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["Feedback"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["Feedback"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["Feedback"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["Priority"] ~= nil then
-							bool_2 = bit32.bor(bool_2, 0b0000100000000000)
+							bool_2 = bit32.bor(bool_2, 0b0100000000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["WetLevel"] ~= nil then
-							bool_2 = bit32.bor(bool_2, 0b0001000000000000)
+							bool_2 = bit32.bor(bool_2, 0b1000000000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["WetLevel"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["WetLevel"] <= 1, "value is more than 1!")
 							alloc(4)
@@ -571,57 +603,57 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Equalizer"] ~= nil then
-						bool_2 = bit32.bor(bool_2, 0b0010000000000000)
+						bool_3 = bit32.bor(bool_3, 0b0000000000000001)
 						if Value["Properties"]["Effects"]["Equalizer"]["HighGain"] ~= nil then
-							bool_2 = bit32.bor(bool_2, 0b0100000000000000)
+							bool_3 = bit32.bor(bool_3, 0b0000000000000010)
 							assert(Value["Properties"]["Effects"]["Equalizer"]["HighGain"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Equalizer"]["HighGain"] <= 10, "value is more than 10!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["HighGain"])
 						end
 						if Value["Properties"]["Effects"]["Equalizer"]["LowGain"] ~= nil then
-							bool_2 = bit32.bor(bool_2, 0b1000000000000000)
+							bool_3 = bit32.bor(bool_3, 0b0000000000000100)
 							assert(Value["Properties"]["Effects"]["Equalizer"]["LowGain"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Equalizer"]["LowGain"] <= 10, "value is more than 10!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["LowGain"])
 						end
 						if Value["Properties"]["Effects"]["Equalizer"]["MidGain"] ~= nil then
-							bool_3 = bit32.bor(bool_3, 0b0000000000000001)
+							bool_3 = bit32.bor(bool_3, 0b0000000000001000)
 							assert(Value["Properties"]["Effects"]["Equalizer"]["MidGain"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Equalizer"]["MidGain"] <= 10, "value is more than 10!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["MidGain"])
 						end
 						if Value["Properties"]["Effects"]["Equalizer"]["Priority"] ~= nil then
-							bool_3 = bit32.bor(bool_3, 0b0000000000000010)
+							bool_3 = bit32.bor(bool_3, 0b0000000000010000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["Priority"])
 						end
 					end
 					if Value["Properties"]["Effects"]["Flange"] ~= nil then
-						bool_3 = bit32.bor(bool_3, 0b0000000000000100)
+						bool_3 = bit32.bor(bool_3, 0b0000000000100000)
 						if Value["Properties"]["Effects"]["Flange"]["Depth"] ~= nil then
-							bool_3 = bit32.bor(bool_3, 0b0000000000001000)
+							bool_3 = bit32.bor(bool_3, 0b0000000001000000)
 							assert(Value["Properties"]["Effects"]["Flange"]["Depth"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Flange"]["Depth"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Flange"]["Depth"])
 						end
 						if Value["Properties"]["Effects"]["Flange"]["Mix"] ~= nil then
-							bool_3 = bit32.bor(bool_3, 0b0000000000010000)
+							bool_3 = bit32.bor(bool_3, 0b0000000010000000)
 							assert(Value["Properties"]["Effects"]["Flange"]["Mix"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Flange"]["Mix"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Flange"]["Mix"])
 						end
 						if Value["Properties"]["Effects"]["Flange"]["Priority"] ~= nil then
-							bool_3 = bit32.bor(bool_3, 0b0000000000100000)
+							bool_3 = bit32.bor(bool_3, 0b0000000100000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Flange"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Flange"]["Rate"] ~= nil then
-							bool_3 = bit32.bor(bool_3, 0b0000000001000000)
+							bool_3 = bit32.bor(bool_3, 0b0000001000000000)
 							assert(Value["Properties"]["Effects"]["Flange"]["Rate"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Flange"]["Rate"] <= 20, "value is more than 20!")
 							alloc(4)
@@ -629,57 +661,57 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["PitchShift"] ~= nil then
-						bool_3 = bit32.bor(bool_3, 0b0000000010000000)
+						bool_3 = bit32.bor(bool_3, 0b0000010000000000)
 						if Value["Properties"]["Effects"]["PitchShift"]["Octave"] ~= nil then
-							bool_3 = bit32.bor(bool_3, 0b0000000100000000)
+							bool_3 = bit32.bor(bool_3, 0b0000100000000000)
 							assert(Value["Properties"]["Effects"]["PitchShift"]["Octave"] >= -1, "value is less than -1!")
 							assert(Value["Properties"]["Effects"]["PitchShift"]["Octave"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["PitchShift"]["Octave"])
 						end
 						if Value["Properties"]["Effects"]["PitchShift"]["Priority"] ~= nil then
-							bool_3 = bit32.bor(bool_3, 0b0000001000000000)
+							bool_3 = bit32.bor(bool_3, 0b0001000000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["PitchShift"]["Priority"])
 						end
 					end
 					if Value["Properties"]["Effects"]["Reverb"] ~= nil then
-						bool_3 = bit32.bor(bool_3, 0b0000010000000000)
+						bool_3 = bit32.bor(bool_3, 0b0010000000000000)
 						if Value["Properties"]["Effects"]["Reverb"]["DecayTime"] ~= nil then
-							bool_3 = bit32.bor(bool_3, 0b0000100000000000)
+							bool_3 = bit32.bor(bool_3, 0b0100000000000000)
 							assert(Value["Properties"]["Effects"]["Reverb"]["DecayTime"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["DecayTime"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["DecayTime"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["Density"] ~= nil then
-							bool_3 = bit32.bor(bool_3, 0b0001000000000000)
+							bool_3 = bit32.bor(bool_3, 0b1000000000000000)
 							assert(Value["Properties"]["Effects"]["Reverb"]["Density"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["Density"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["Density"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["Diffusion"] ~= nil then
-							bool_3 = bit32.bor(bool_3, 0b0010000000000000)
+							bool_4 = bit32.bor(bool_4, 0b0000000000000001)
 							assert(Value["Properties"]["Effects"]["Reverb"]["Diffusion"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["Diffusion"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["Diffusion"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["DryLevel"] ~= nil then
-							bool_3 = bit32.bor(bool_3, 0b0100000000000000)
+							bool_4 = bit32.bor(bool_4, 0b0000000000000010)
 							assert(Value["Properties"]["Effects"]["Reverb"]["DryLevel"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["DryLevel"] <= 0, "value is more than 0!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["DryLevel"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["Priority"] ~= nil then
-							bool_3 = bit32.bor(bool_3, 0b1000000000000000)
+							bool_4 = bit32.bor(bool_4, 0b0000000000000100)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["WetLevel"] ~= nil then
-							bool_4 = bit32.bor(bool_4, 0b0000000000000001)
+							bool_4 = bit32.bor(bool_4, 0b0000000000001000)
 							assert(Value["Properties"]["Effects"]["Reverb"]["WetLevel"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["WetLevel"] <= 0, "value is more than 0!")
 							alloc(4)
@@ -687,50 +719,51 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Tremolo"] ~= nil then
-						bool_4 = bit32.bor(bool_4, 0b0000000000000010)
+						bool_4 = bit32.bor(bool_4, 0b0000000000010000)
 						if Value["Properties"]["Effects"]["Tremolo"]["Depth"] ~= nil then
-							bool_4 = bit32.bor(bool_4, 0b0000000000000100)
+							bool_4 = bit32.bor(bool_4, 0b0000000000100000)
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Depth"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Depth"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Depth"])
 						end
 						if Value["Properties"]["Effects"]["Tremolo"]["Duty"] ~= nil then
-							bool_4 = bit32.bor(bool_4, 0b0000000000001000)
+							bool_4 = bit32.bor(bool_4, 0b0000000001000000)
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Duty"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Duty"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Duty"])
 						end
 						if Value["Properties"]["Effects"]["Tremolo"]["Frequency"] ~= nil then
-							bool_4 = bit32.bor(bool_4, 0b0000000000010000)
+							bool_4 = bit32.bor(bool_4, 0b0000000010000000)
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Frequency"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Frequency"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Frequency"])
 						end
 						if Value["Properties"]["Effects"]["Tremolo"]["Priority"] ~= nil then
-							bool_4 = bit32.bor(bool_4, 0b0000000000100000)
+							bool_4 = bit32.bor(bool_4, 0b0000000100000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Priority"])
 						end
 					end
 				end
 				if Value["Properties"]["DenyBaseProperties"] ~= nil then
-					bool_4 = bit32.bor(bool_4, 0b0000000001000000)
+					bool_4 = bit32.bor(bool_4, 0b0000001000000000)
 					if Value["Properties"]["DenyBaseProperties"] then
-						bool_4 = bit32.bor(bool_4, 0b0000000010000000)
+						bool_4 = bit32.bor(bool_4, 0b0000010000000000)
 					end
 				end
 			end
 			buffer.writeu16(outgoing_buff, bool_1_pos_1, bool_1)
 			buffer.writeu16(outgoing_buff, bool_2_pos_1, bool_2)
 			buffer.writeu16(outgoing_buff, bool_3_pos_1, bool_3)
-			buffer.writeu8(outgoing_buff, bool_4_pos_1, bool_4)
+			buffer.writeu16(outgoing_buff, bool_4_pos_1, bool_4)
 			player_map[Player] = save()
 		end,
 		FireAll = function(Value: ({
 			["SoundName"]: (string),
+			["Position"]: (((vector) | (CFrame))?),
 			["Properties"]: (({
 				["Group"]: ((string)?),
 				["Parent"]: ((Instance)?),
@@ -808,17 +841,47 @@ local returns = {
 			local bool_7 = 0
 			local bool_7_pos_1 = alloc(2)
 			local bool_8 = 0
-			local bool_8_pos_1 = alloc(1)
+			local bool_8_pos_1 = alloc(2)
 			local len_3 = #Value["SoundName"]
 			assert(utf8.len(Value["SoundName"]) ~= nil, "value is not valid utf-8")
 			alloc(2)
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_3)
 			alloc(len_3)
 			buffer.writestring(outgoing_buff, outgoing_apos, Value["SoundName"], len_3)
-			if Value["Properties"] ~= nil then
+			local ty_name_2 = typeof(Value["Position"])
+			if ty_name_2 == "Vector3" then
 				bool_5 = bit32.bor(bool_5, 0b0000000000000001)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].x)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].y)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].z)
+			elseif ty_name_2 == "CFrame" then
+				bool_5 = bit32.bor(bool_5, 0b0000000000000010)
+				local axis_2, angle_2 = Value["Position"]:ToAxisAngle()
+				axis_2 = axis_2 * angle_2
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].Position.X)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].Position.Y)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].Position.Z)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, axis_2.X)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Y)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Z)
+			elseif Value["Position"] == nil then
+				bool_5 = bit32.bor(bool_5, 0b0000000000000100)
+			else
+				error("Invalid type")
+			end
+			if Value["Properties"] ~= nil then
+				bool_5 = bit32.bor(bool_5, 0b0000000000001000)
 				if Value["Properties"]["Group"] ~= nil then
-					bool_5 = bit32.bor(bool_5, 0b0000000000000010)
+					bool_5 = bit32.bor(bool_5, 0b0000000000010000)
 					local len_4 = #Value["Properties"]["Group"]
 					assert(utf8.len(Value["Properties"]["Group"]) ~= nil, "value is not valid utf-8")
 					alloc(2)
@@ -827,62 +890,62 @@ local returns = {
 					buffer.writestring(outgoing_buff, outgoing_apos, Value["Properties"]["Group"], len_4)
 				end
 				if Value["Properties"]["Parent"] ~= nil then
-					bool_5 = bit32.bor(bool_5, 0b0000000000000100)
+					bool_5 = bit32.bor(bool_5, 0b0000000000100000)
 					table.insert(outgoing_inst, Value["Properties"]["Parent"])
 				end
 				if Value["Properties"]["Volume"] ~= nil then
-					bool_5 = bit32.bor(bool_5, 0b0000000000001000)
+					bool_5 = bit32.bor(bool_5, 0b0000000001000000)
 					assert(Value["Properties"]["Volume"] >= 0, "value is less than 0!")
 					assert(Value["Properties"]["Volume"] <= 1, "value is more than 1!")
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Volume"])
 				end
 				if Value["Properties"]["PlaybackSpeed"] ~= nil then
-					bool_5 = bit32.bor(bool_5, 0b0000000000010000)
+					bool_5 = bit32.bor(bool_5, 0b0000000010000000)
 					assert(Value["Properties"]["PlaybackSpeed"] >= 0, "value is less than 0!")
 					assert(Value["Properties"]["PlaybackSpeed"] <= 15, "value is more than 15!")
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["PlaybackSpeed"])
 				end
 				if Value["Properties"]["PlaybackRegion"] ~= nil then
-					bool_5 = bit32.bor(bool_5, 0b0000000000100000)
+					bool_5 = bit32.bor(bool_5, 0b0000000100000000)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["PlaybackRegion"].x)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["PlaybackRegion"].y)
 				end
 				if Value["Properties"]["RollOff"] ~= nil then
-					bool_5 = bit32.bor(bool_5, 0b0000000001000000)
+					bool_5 = bit32.bor(bool_5, 0b0000001000000000)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["RollOff"].x)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["RollOff"].y)
 				end
 				if Value["Properties"]["Effects"] ~= nil then
-					bool_5 = bit32.bor(bool_5, 0b0000000010000000)
+					bool_5 = bit32.bor(bool_5, 0b0000010000000000)
 					if Value["Properties"]["Effects"]["Chorus"] ~= nil then
-						bool_5 = bit32.bor(bool_5, 0b0000000100000000)
+						bool_5 = bit32.bor(bool_5, 0b0000100000000000)
 						if Value["Properties"]["Effects"]["Chorus"]["Depth"] ~= nil then
-							bool_5 = bit32.bor(bool_5, 0b0000001000000000)
+							bool_5 = bit32.bor(bool_5, 0b0001000000000000)
 							assert(Value["Properties"]["Effects"]["Chorus"]["Depth"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Chorus"]["Depth"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Chorus"]["Depth"])
 						end
 						if Value["Properties"]["Effects"]["Chorus"]["Mix"] ~= nil then
-							bool_5 = bit32.bor(bool_5, 0b0000010000000000)
+							bool_5 = bit32.bor(bool_5, 0b0010000000000000)
 							assert(Value["Properties"]["Effects"]["Chorus"]["Mix"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Chorus"]["Mix"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Chorus"]["Mix"])
 						end
 						if Value["Properties"]["Effects"]["Chorus"]["Priority"] ~= nil then
-							bool_5 = bit32.bor(bool_5, 0b0000100000000000)
+							bool_5 = bit32.bor(bool_5, 0b0100000000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Chorus"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Chorus"]["Rate"] ~= nil then
-							bool_5 = bit32.bor(bool_5, 0b0001000000000000)
+							bool_5 = bit32.bor(bool_5, 0b1000000000000000)
 							assert(Value["Properties"]["Effects"]["Chorus"]["Rate"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Chorus"]["Rate"] <= 20, "value is more than 20!")
 							alloc(4)
@@ -890,41 +953,41 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Compressor"] ~= nil then
-						bool_5 = bit32.bor(bool_5, 0b0010000000000000)
+						bool_6 = bit32.bor(bool_6, 0b0000000000000001)
 						if Value["Properties"]["Effects"]["Compressor"]["Attack"] ~= nil then
-							bool_5 = bit32.bor(bool_5, 0b0100000000000000)
+							bool_6 = bit32.bor(bool_6, 0b0000000000000010)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Attack"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["Attack"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Attack"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["GainMakeup"] ~= nil then
-							bool_5 = bit32.bor(bool_5, 0b1000000000000000)
+							bool_6 = bit32.bor(bool_6, 0b0000000000000100)
 							assert(Value["Properties"]["Effects"]["Compressor"]["GainMakeup"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["GainMakeup"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["GainMakeup"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Priority"] ~= nil then
-							bool_6 = bit32.bor(bool_6, 0b0000000000000001)
+							bool_6 = bit32.bor(bool_6, 0b0000000000001000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Ratio"] ~= nil then
-							bool_6 = bit32.bor(bool_6, 0b0000000000000010)
+							bool_6 = bit32.bor(bool_6, 0b0000000000010000)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Ratio"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Ratio"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Release"] ~= nil then
-							bool_6 = bit32.bor(bool_6, 0b0000000000000100)
+							bool_6 = bit32.bor(bool_6, 0b0000000000100000)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Release"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["Release"] <= 5, "value is more than 5!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Release"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Threshold"] ~= nil then
-							bool_6 = bit32.bor(bool_6, 0b0000000000001000)
+							bool_6 = bit32.bor(bool_6, 0b0000000001000000)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Threshold"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["Threshold"] <= 0, "value is more than 0!")
 							alloc(4)
@@ -932,49 +995,49 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Distortion"] ~= nil then
-						bool_6 = bit32.bor(bool_6, 0b0000000000010000)
+						bool_6 = bit32.bor(bool_6, 0b0000000010000000)
 						if Value["Properties"]["Effects"]["Distortion"]["Level"] ~= nil then
-							bool_6 = bit32.bor(bool_6, 0b0000000000100000)
+							bool_6 = bit32.bor(bool_6, 0b0000000100000000)
 							assert(Value["Properties"]["Effects"]["Distortion"]["Level"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Distortion"]["Level"])
 						end
 						if Value["Properties"]["Effects"]["Distortion"]["Priority"] ~= nil then
-							bool_6 = bit32.bor(bool_6, 0b0000000001000000)
+							bool_6 = bit32.bor(bool_6, 0b0000001000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Distortion"]["Priority"])
 						end
 					end
 					if Value["Properties"]["Effects"]["Echo"] ~= nil then
-						bool_6 = bit32.bor(bool_6, 0b0000000010000000)
+						bool_6 = bit32.bor(bool_6, 0b0000010000000000)
 						if Value["Properties"]["Effects"]["Echo"]["Delay"] ~= nil then
-							bool_6 = bit32.bor(bool_6, 0b0000000100000000)
+							bool_6 = bit32.bor(bool_6, 0b0000100000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["Delay"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["Delay"] <= 5, "value is more than 5!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["Delay"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["DryLevel"] ~= nil then
-							bool_6 = bit32.bor(bool_6, 0b0000001000000000)
+							bool_6 = bit32.bor(bool_6, 0b0001000000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["DryLevel"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["DryLevel"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["DryLevel"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["Feedback"] ~= nil then
-							bool_6 = bit32.bor(bool_6, 0b0000010000000000)
+							bool_6 = bit32.bor(bool_6, 0b0010000000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["Feedback"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["Feedback"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["Feedback"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["Priority"] ~= nil then
-							bool_6 = bit32.bor(bool_6, 0b0000100000000000)
+							bool_6 = bit32.bor(bool_6, 0b0100000000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["WetLevel"] ~= nil then
-							bool_6 = bit32.bor(bool_6, 0b0001000000000000)
+							bool_6 = bit32.bor(bool_6, 0b1000000000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["WetLevel"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["WetLevel"] <= 1, "value is more than 1!")
 							alloc(4)
@@ -982,57 +1045,57 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Equalizer"] ~= nil then
-						bool_6 = bit32.bor(bool_6, 0b0010000000000000)
+						bool_7 = bit32.bor(bool_7, 0b0000000000000001)
 						if Value["Properties"]["Effects"]["Equalizer"]["HighGain"] ~= nil then
-							bool_6 = bit32.bor(bool_6, 0b0100000000000000)
+							bool_7 = bit32.bor(bool_7, 0b0000000000000010)
 							assert(Value["Properties"]["Effects"]["Equalizer"]["HighGain"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Equalizer"]["HighGain"] <= 10, "value is more than 10!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["HighGain"])
 						end
 						if Value["Properties"]["Effects"]["Equalizer"]["LowGain"] ~= nil then
-							bool_6 = bit32.bor(bool_6, 0b1000000000000000)
+							bool_7 = bit32.bor(bool_7, 0b0000000000000100)
 							assert(Value["Properties"]["Effects"]["Equalizer"]["LowGain"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Equalizer"]["LowGain"] <= 10, "value is more than 10!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["LowGain"])
 						end
 						if Value["Properties"]["Effects"]["Equalizer"]["MidGain"] ~= nil then
-							bool_7 = bit32.bor(bool_7, 0b0000000000000001)
+							bool_7 = bit32.bor(bool_7, 0b0000000000001000)
 							assert(Value["Properties"]["Effects"]["Equalizer"]["MidGain"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Equalizer"]["MidGain"] <= 10, "value is more than 10!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["MidGain"])
 						end
 						if Value["Properties"]["Effects"]["Equalizer"]["Priority"] ~= nil then
-							bool_7 = bit32.bor(bool_7, 0b0000000000000010)
+							bool_7 = bit32.bor(bool_7, 0b0000000000010000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["Priority"])
 						end
 					end
 					if Value["Properties"]["Effects"]["Flange"] ~= nil then
-						bool_7 = bit32.bor(bool_7, 0b0000000000000100)
+						bool_7 = bit32.bor(bool_7, 0b0000000000100000)
 						if Value["Properties"]["Effects"]["Flange"]["Depth"] ~= nil then
-							bool_7 = bit32.bor(bool_7, 0b0000000000001000)
+							bool_7 = bit32.bor(bool_7, 0b0000000001000000)
 							assert(Value["Properties"]["Effects"]["Flange"]["Depth"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Flange"]["Depth"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Flange"]["Depth"])
 						end
 						if Value["Properties"]["Effects"]["Flange"]["Mix"] ~= nil then
-							bool_7 = bit32.bor(bool_7, 0b0000000000010000)
+							bool_7 = bit32.bor(bool_7, 0b0000000010000000)
 							assert(Value["Properties"]["Effects"]["Flange"]["Mix"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Flange"]["Mix"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Flange"]["Mix"])
 						end
 						if Value["Properties"]["Effects"]["Flange"]["Priority"] ~= nil then
-							bool_7 = bit32.bor(bool_7, 0b0000000000100000)
+							bool_7 = bit32.bor(bool_7, 0b0000000100000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Flange"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Flange"]["Rate"] ~= nil then
-							bool_7 = bit32.bor(bool_7, 0b0000000001000000)
+							bool_7 = bit32.bor(bool_7, 0b0000001000000000)
 							assert(Value["Properties"]["Effects"]["Flange"]["Rate"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Flange"]["Rate"] <= 20, "value is more than 20!")
 							alloc(4)
@@ -1040,57 +1103,57 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["PitchShift"] ~= nil then
-						bool_7 = bit32.bor(bool_7, 0b0000000010000000)
+						bool_7 = bit32.bor(bool_7, 0b0000010000000000)
 						if Value["Properties"]["Effects"]["PitchShift"]["Octave"] ~= nil then
-							bool_7 = bit32.bor(bool_7, 0b0000000100000000)
+							bool_7 = bit32.bor(bool_7, 0b0000100000000000)
 							assert(Value["Properties"]["Effects"]["PitchShift"]["Octave"] >= -1, "value is less than -1!")
 							assert(Value["Properties"]["Effects"]["PitchShift"]["Octave"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["PitchShift"]["Octave"])
 						end
 						if Value["Properties"]["Effects"]["PitchShift"]["Priority"] ~= nil then
-							bool_7 = bit32.bor(bool_7, 0b0000001000000000)
+							bool_7 = bit32.bor(bool_7, 0b0001000000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["PitchShift"]["Priority"])
 						end
 					end
 					if Value["Properties"]["Effects"]["Reverb"] ~= nil then
-						bool_7 = bit32.bor(bool_7, 0b0000010000000000)
+						bool_7 = bit32.bor(bool_7, 0b0010000000000000)
 						if Value["Properties"]["Effects"]["Reverb"]["DecayTime"] ~= nil then
-							bool_7 = bit32.bor(bool_7, 0b0000100000000000)
+							bool_7 = bit32.bor(bool_7, 0b0100000000000000)
 							assert(Value["Properties"]["Effects"]["Reverb"]["DecayTime"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["DecayTime"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["DecayTime"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["Density"] ~= nil then
-							bool_7 = bit32.bor(bool_7, 0b0001000000000000)
+							bool_7 = bit32.bor(bool_7, 0b1000000000000000)
 							assert(Value["Properties"]["Effects"]["Reverb"]["Density"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["Density"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["Density"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["Diffusion"] ~= nil then
-							bool_7 = bit32.bor(bool_7, 0b0010000000000000)
+							bool_8 = bit32.bor(bool_8, 0b0000000000000001)
 							assert(Value["Properties"]["Effects"]["Reverb"]["Diffusion"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["Diffusion"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["Diffusion"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["DryLevel"] ~= nil then
-							bool_7 = bit32.bor(bool_7, 0b0100000000000000)
+							bool_8 = bit32.bor(bool_8, 0b0000000000000010)
 							assert(Value["Properties"]["Effects"]["Reverb"]["DryLevel"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["DryLevel"] <= 0, "value is more than 0!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["DryLevel"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["Priority"] ~= nil then
-							bool_7 = bit32.bor(bool_7, 0b1000000000000000)
+							bool_8 = bit32.bor(bool_8, 0b0000000000000100)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["WetLevel"] ~= nil then
-							bool_8 = bit32.bor(bool_8, 0b0000000000000001)
+							bool_8 = bit32.bor(bool_8, 0b0000000000001000)
 							assert(Value["Properties"]["Effects"]["Reverb"]["WetLevel"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["WetLevel"] <= 0, "value is more than 0!")
 							alloc(4)
@@ -1098,46 +1161,46 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Tremolo"] ~= nil then
-						bool_8 = bit32.bor(bool_8, 0b0000000000000010)
+						bool_8 = bit32.bor(bool_8, 0b0000000000010000)
 						if Value["Properties"]["Effects"]["Tremolo"]["Depth"] ~= nil then
-							bool_8 = bit32.bor(bool_8, 0b0000000000000100)
+							bool_8 = bit32.bor(bool_8, 0b0000000000100000)
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Depth"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Depth"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Depth"])
 						end
 						if Value["Properties"]["Effects"]["Tremolo"]["Duty"] ~= nil then
-							bool_8 = bit32.bor(bool_8, 0b0000000000001000)
+							bool_8 = bit32.bor(bool_8, 0b0000000001000000)
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Duty"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Duty"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Duty"])
 						end
 						if Value["Properties"]["Effects"]["Tremolo"]["Frequency"] ~= nil then
-							bool_8 = bit32.bor(bool_8, 0b0000000000010000)
+							bool_8 = bit32.bor(bool_8, 0b0000000010000000)
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Frequency"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Frequency"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Frequency"])
 						end
 						if Value["Properties"]["Effects"]["Tremolo"]["Priority"] ~= nil then
-							bool_8 = bit32.bor(bool_8, 0b0000000000100000)
+							bool_8 = bit32.bor(bool_8, 0b0000000100000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Priority"])
 						end
 					end
 				end
 				if Value["Properties"]["DenyBaseProperties"] ~= nil then
-					bool_8 = bit32.bor(bool_8, 0b0000000001000000)
+					bool_8 = bit32.bor(bool_8, 0b0000001000000000)
 					if Value["Properties"]["DenyBaseProperties"] then
-						bool_8 = bit32.bor(bool_8, 0b0000000010000000)
+						bool_8 = bit32.bor(bool_8, 0b0000010000000000)
 					end
 				end
 			end
 			buffer.writeu16(outgoing_buff, bool_5_pos_1, bool_5)
 			buffer.writeu16(outgoing_buff, bool_6_pos_1, bool_6)
 			buffer.writeu16(outgoing_buff, bool_7_pos_1, bool_7)
-			buffer.writeu8(outgoing_buff, bool_8_pos_1, bool_8)
+			buffer.writeu16(outgoing_buff, bool_8_pos_1, bool_8)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for _, player in Players:GetPlayers() do
 				load_player(player)
@@ -1149,6 +1212,7 @@ local returns = {
 		end,
 		FireExcept = function(Except: Player, Value: ({
 			["SoundName"]: (string),
+			["Position"]: (((vector) | (CFrame))?),
 			["Properties"]: (({
 				["Group"]: ((string)?),
 				["Parent"]: ((Instance)?),
@@ -1226,17 +1290,47 @@ local returns = {
 			local bool_11 = 0
 			local bool_11_pos_1 = alloc(2)
 			local bool_12 = 0
-			local bool_12_pos_1 = alloc(1)
+			local bool_12_pos_1 = alloc(2)
 			local len_5 = #Value["SoundName"]
 			assert(utf8.len(Value["SoundName"]) ~= nil, "value is not valid utf-8")
 			alloc(2)
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
 			alloc(len_5)
 			buffer.writestring(outgoing_buff, outgoing_apos, Value["SoundName"], len_5)
-			if Value["Properties"] ~= nil then
+			local ty_name_3 = typeof(Value["Position"])
+			if ty_name_3 == "Vector3" then
 				bool_9 = bit32.bor(bool_9, 0b0000000000000001)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].x)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].y)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].z)
+			elseif ty_name_3 == "CFrame" then
+				bool_9 = bit32.bor(bool_9, 0b0000000000000010)
+				local axis_3, angle_3 = Value["Position"]:ToAxisAngle()
+				axis_3 = axis_3 * angle_3
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].Position.X)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].Position.Y)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].Position.Z)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, axis_3.X)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, axis_3.Y)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, axis_3.Z)
+			elseif Value["Position"] == nil then
+				bool_9 = bit32.bor(bool_9, 0b0000000000000100)
+			else
+				error("Invalid type")
+			end
+			if Value["Properties"] ~= nil then
+				bool_9 = bit32.bor(bool_9, 0b0000000000001000)
 				if Value["Properties"]["Group"] ~= nil then
-					bool_9 = bit32.bor(bool_9, 0b0000000000000010)
+					bool_9 = bit32.bor(bool_9, 0b0000000000010000)
 					local len_6 = #Value["Properties"]["Group"]
 					assert(utf8.len(Value["Properties"]["Group"]) ~= nil, "value is not valid utf-8")
 					alloc(2)
@@ -1245,62 +1339,62 @@ local returns = {
 					buffer.writestring(outgoing_buff, outgoing_apos, Value["Properties"]["Group"], len_6)
 				end
 				if Value["Properties"]["Parent"] ~= nil then
-					bool_9 = bit32.bor(bool_9, 0b0000000000000100)
+					bool_9 = bit32.bor(bool_9, 0b0000000000100000)
 					table.insert(outgoing_inst, Value["Properties"]["Parent"])
 				end
 				if Value["Properties"]["Volume"] ~= nil then
-					bool_9 = bit32.bor(bool_9, 0b0000000000001000)
+					bool_9 = bit32.bor(bool_9, 0b0000000001000000)
 					assert(Value["Properties"]["Volume"] >= 0, "value is less than 0!")
 					assert(Value["Properties"]["Volume"] <= 1, "value is more than 1!")
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Volume"])
 				end
 				if Value["Properties"]["PlaybackSpeed"] ~= nil then
-					bool_9 = bit32.bor(bool_9, 0b0000000000010000)
+					bool_9 = bit32.bor(bool_9, 0b0000000010000000)
 					assert(Value["Properties"]["PlaybackSpeed"] >= 0, "value is less than 0!")
 					assert(Value["Properties"]["PlaybackSpeed"] <= 15, "value is more than 15!")
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["PlaybackSpeed"])
 				end
 				if Value["Properties"]["PlaybackRegion"] ~= nil then
-					bool_9 = bit32.bor(bool_9, 0b0000000000100000)
+					bool_9 = bit32.bor(bool_9, 0b0000000100000000)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["PlaybackRegion"].x)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["PlaybackRegion"].y)
 				end
 				if Value["Properties"]["RollOff"] ~= nil then
-					bool_9 = bit32.bor(bool_9, 0b0000000001000000)
+					bool_9 = bit32.bor(bool_9, 0b0000001000000000)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["RollOff"].x)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["RollOff"].y)
 				end
 				if Value["Properties"]["Effects"] ~= nil then
-					bool_9 = bit32.bor(bool_9, 0b0000000010000000)
+					bool_9 = bit32.bor(bool_9, 0b0000010000000000)
 					if Value["Properties"]["Effects"]["Chorus"] ~= nil then
-						bool_9 = bit32.bor(bool_9, 0b0000000100000000)
+						bool_9 = bit32.bor(bool_9, 0b0000100000000000)
 						if Value["Properties"]["Effects"]["Chorus"]["Depth"] ~= nil then
-							bool_9 = bit32.bor(bool_9, 0b0000001000000000)
+							bool_9 = bit32.bor(bool_9, 0b0001000000000000)
 							assert(Value["Properties"]["Effects"]["Chorus"]["Depth"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Chorus"]["Depth"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Chorus"]["Depth"])
 						end
 						if Value["Properties"]["Effects"]["Chorus"]["Mix"] ~= nil then
-							bool_9 = bit32.bor(bool_9, 0b0000010000000000)
+							bool_9 = bit32.bor(bool_9, 0b0010000000000000)
 							assert(Value["Properties"]["Effects"]["Chorus"]["Mix"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Chorus"]["Mix"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Chorus"]["Mix"])
 						end
 						if Value["Properties"]["Effects"]["Chorus"]["Priority"] ~= nil then
-							bool_9 = bit32.bor(bool_9, 0b0000100000000000)
+							bool_9 = bit32.bor(bool_9, 0b0100000000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Chorus"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Chorus"]["Rate"] ~= nil then
-							bool_9 = bit32.bor(bool_9, 0b0001000000000000)
+							bool_9 = bit32.bor(bool_9, 0b1000000000000000)
 							assert(Value["Properties"]["Effects"]["Chorus"]["Rate"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Chorus"]["Rate"] <= 20, "value is more than 20!")
 							alloc(4)
@@ -1308,41 +1402,41 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Compressor"] ~= nil then
-						bool_9 = bit32.bor(bool_9, 0b0010000000000000)
+						bool_10 = bit32.bor(bool_10, 0b0000000000000001)
 						if Value["Properties"]["Effects"]["Compressor"]["Attack"] ~= nil then
-							bool_9 = bit32.bor(bool_9, 0b0100000000000000)
+							bool_10 = bit32.bor(bool_10, 0b0000000000000010)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Attack"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["Attack"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Attack"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["GainMakeup"] ~= nil then
-							bool_9 = bit32.bor(bool_9, 0b1000000000000000)
+							bool_10 = bit32.bor(bool_10, 0b0000000000000100)
 							assert(Value["Properties"]["Effects"]["Compressor"]["GainMakeup"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["GainMakeup"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["GainMakeup"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Priority"] ~= nil then
-							bool_10 = bit32.bor(bool_10, 0b0000000000000001)
+							bool_10 = bit32.bor(bool_10, 0b0000000000001000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Ratio"] ~= nil then
-							bool_10 = bit32.bor(bool_10, 0b0000000000000010)
+							bool_10 = bit32.bor(bool_10, 0b0000000000010000)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Ratio"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Ratio"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Release"] ~= nil then
-							bool_10 = bit32.bor(bool_10, 0b0000000000000100)
+							bool_10 = bit32.bor(bool_10, 0b0000000000100000)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Release"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["Release"] <= 5, "value is more than 5!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Release"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Threshold"] ~= nil then
-							bool_10 = bit32.bor(bool_10, 0b0000000000001000)
+							bool_10 = bit32.bor(bool_10, 0b0000000001000000)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Threshold"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["Threshold"] <= 0, "value is more than 0!")
 							alloc(4)
@@ -1350,49 +1444,49 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Distortion"] ~= nil then
-						bool_10 = bit32.bor(bool_10, 0b0000000000010000)
+						bool_10 = bit32.bor(bool_10, 0b0000000010000000)
 						if Value["Properties"]["Effects"]["Distortion"]["Level"] ~= nil then
-							bool_10 = bit32.bor(bool_10, 0b0000000000100000)
+							bool_10 = bit32.bor(bool_10, 0b0000000100000000)
 							assert(Value["Properties"]["Effects"]["Distortion"]["Level"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Distortion"]["Level"])
 						end
 						if Value["Properties"]["Effects"]["Distortion"]["Priority"] ~= nil then
-							bool_10 = bit32.bor(bool_10, 0b0000000001000000)
+							bool_10 = bit32.bor(bool_10, 0b0000001000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Distortion"]["Priority"])
 						end
 					end
 					if Value["Properties"]["Effects"]["Echo"] ~= nil then
-						bool_10 = bit32.bor(bool_10, 0b0000000010000000)
+						bool_10 = bit32.bor(bool_10, 0b0000010000000000)
 						if Value["Properties"]["Effects"]["Echo"]["Delay"] ~= nil then
-							bool_10 = bit32.bor(bool_10, 0b0000000100000000)
+							bool_10 = bit32.bor(bool_10, 0b0000100000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["Delay"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["Delay"] <= 5, "value is more than 5!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["Delay"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["DryLevel"] ~= nil then
-							bool_10 = bit32.bor(bool_10, 0b0000001000000000)
+							bool_10 = bit32.bor(bool_10, 0b0001000000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["DryLevel"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["DryLevel"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["DryLevel"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["Feedback"] ~= nil then
-							bool_10 = bit32.bor(bool_10, 0b0000010000000000)
+							bool_10 = bit32.bor(bool_10, 0b0010000000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["Feedback"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["Feedback"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["Feedback"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["Priority"] ~= nil then
-							bool_10 = bit32.bor(bool_10, 0b0000100000000000)
+							bool_10 = bit32.bor(bool_10, 0b0100000000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["WetLevel"] ~= nil then
-							bool_10 = bit32.bor(bool_10, 0b0001000000000000)
+							bool_10 = bit32.bor(bool_10, 0b1000000000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["WetLevel"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["WetLevel"] <= 1, "value is more than 1!")
 							alloc(4)
@@ -1400,57 +1494,57 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Equalizer"] ~= nil then
-						bool_10 = bit32.bor(bool_10, 0b0010000000000000)
+						bool_11 = bit32.bor(bool_11, 0b0000000000000001)
 						if Value["Properties"]["Effects"]["Equalizer"]["HighGain"] ~= nil then
-							bool_10 = bit32.bor(bool_10, 0b0100000000000000)
+							bool_11 = bit32.bor(bool_11, 0b0000000000000010)
 							assert(Value["Properties"]["Effects"]["Equalizer"]["HighGain"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Equalizer"]["HighGain"] <= 10, "value is more than 10!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["HighGain"])
 						end
 						if Value["Properties"]["Effects"]["Equalizer"]["LowGain"] ~= nil then
-							bool_10 = bit32.bor(bool_10, 0b1000000000000000)
+							bool_11 = bit32.bor(bool_11, 0b0000000000000100)
 							assert(Value["Properties"]["Effects"]["Equalizer"]["LowGain"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Equalizer"]["LowGain"] <= 10, "value is more than 10!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["LowGain"])
 						end
 						if Value["Properties"]["Effects"]["Equalizer"]["MidGain"] ~= nil then
-							bool_11 = bit32.bor(bool_11, 0b0000000000000001)
+							bool_11 = bit32.bor(bool_11, 0b0000000000001000)
 							assert(Value["Properties"]["Effects"]["Equalizer"]["MidGain"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Equalizer"]["MidGain"] <= 10, "value is more than 10!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["MidGain"])
 						end
 						if Value["Properties"]["Effects"]["Equalizer"]["Priority"] ~= nil then
-							bool_11 = bit32.bor(bool_11, 0b0000000000000010)
+							bool_11 = bit32.bor(bool_11, 0b0000000000010000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["Priority"])
 						end
 					end
 					if Value["Properties"]["Effects"]["Flange"] ~= nil then
-						bool_11 = bit32.bor(bool_11, 0b0000000000000100)
+						bool_11 = bit32.bor(bool_11, 0b0000000000100000)
 						if Value["Properties"]["Effects"]["Flange"]["Depth"] ~= nil then
-							bool_11 = bit32.bor(bool_11, 0b0000000000001000)
+							bool_11 = bit32.bor(bool_11, 0b0000000001000000)
 							assert(Value["Properties"]["Effects"]["Flange"]["Depth"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Flange"]["Depth"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Flange"]["Depth"])
 						end
 						if Value["Properties"]["Effects"]["Flange"]["Mix"] ~= nil then
-							bool_11 = bit32.bor(bool_11, 0b0000000000010000)
+							bool_11 = bit32.bor(bool_11, 0b0000000010000000)
 							assert(Value["Properties"]["Effects"]["Flange"]["Mix"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Flange"]["Mix"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Flange"]["Mix"])
 						end
 						if Value["Properties"]["Effects"]["Flange"]["Priority"] ~= nil then
-							bool_11 = bit32.bor(bool_11, 0b0000000000100000)
+							bool_11 = bit32.bor(bool_11, 0b0000000100000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Flange"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Flange"]["Rate"] ~= nil then
-							bool_11 = bit32.bor(bool_11, 0b0000000001000000)
+							bool_11 = bit32.bor(bool_11, 0b0000001000000000)
 							assert(Value["Properties"]["Effects"]["Flange"]["Rate"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Flange"]["Rate"] <= 20, "value is more than 20!")
 							alloc(4)
@@ -1458,57 +1552,57 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["PitchShift"] ~= nil then
-						bool_11 = bit32.bor(bool_11, 0b0000000010000000)
+						bool_11 = bit32.bor(bool_11, 0b0000010000000000)
 						if Value["Properties"]["Effects"]["PitchShift"]["Octave"] ~= nil then
-							bool_11 = bit32.bor(bool_11, 0b0000000100000000)
+							bool_11 = bit32.bor(bool_11, 0b0000100000000000)
 							assert(Value["Properties"]["Effects"]["PitchShift"]["Octave"] >= -1, "value is less than -1!")
 							assert(Value["Properties"]["Effects"]["PitchShift"]["Octave"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["PitchShift"]["Octave"])
 						end
 						if Value["Properties"]["Effects"]["PitchShift"]["Priority"] ~= nil then
-							bool_11 = bit32.bor(bool_11, 0b0000001000000000)
+							bool_11 = bit32.bor(bool_11, 0b0001000000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["PitchShift"]["Priority"])
 						end
 					end
 					if Value["Properties"]["Effects"]["Reverb"] ~= nil then
-						bool_11 = bit32.bor(bool_11, 0b0000010000000000)
+						bool_11 = bit32.bor(bool_11, 0b0010000000000000)
 						if Value["Properties"]["Effects"]["Reverb"]["DecayTime"] ~= nil then
-							bool_11 = bit32.bor(bool_11, 0b0000100000000000)
+							bool_11 = bit32.bor(bool_11, 0b0100000000000000)
 							assert(Value["Properties"]["Effects"]["Reverb"]["DecayTime"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["DecayTime"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["DecayTime"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["Density"] ~= nil then
-							bool_11 = bit32.bor(bool_11, 0b0001000000000000)
+							bool_11 = bit32.bor(bool_11, 0b1000000000000000)
 							assert(Value["Properties"]["Effects"]["Reverb"]["Density"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["Density"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["Density"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["Diffusion"] ~= nil then
-							bool_11 = bit32.bor(bool_11, 0b0010000000000000)
+							bool_12 = bit32.bor(bool_12, 0b0000000000000001)
 							assert(Value["Properties"]["Effects"]["Reverb"]["Diffusion"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["Diffusion"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["Diffusion"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["DryLevel"] ~= nil then
-							bool_11 = bit32.bor(bool_11, 0b0100000000000000)
+							bool_12 = bit32.bor(bool_12, 0b0000000000000010)
 							assert(Value["Properties"]["Effects"]["Reverb"]["DryLevel"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["DryLevel"] <= 0, "value is more than 0!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["DryLevel"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["Priority"] ~= nil then
-							bool_11 = bit32.bor(bool_11, 0b1000000000000000)
+							bool_12 = bit32.bor(bool_12, 0b0000000000000100)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["WetLevel"] ~= nil then
-							bool_12 = bit32.bor(bool_12, 0b0000000000000001)
+							bool_12 = bit32.bor(bool_12, 0b0000000000001000)
 							assert(Value["Properties"]["Effects"]["Reverb"]["WetLevel"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["WetLevel"] <= 0, "value is more than 0!")
 							alloc(4)
@@ -1516,46 +1610,46 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Tremolo"] ~= nil then
-						bool_12 = bit32.bor(bool_12, 0b0000000000000010)
+						bool_12 = bit32.bor(bool_12, 0b0000000000010000)
 						if Value["Properties"]["Effects"]["Tremolo"]["Depth"] ~= nil then
-							bool_12 = bit32.bor(bool_12, 0b0000000000000100)
+							bool_12 = bit32.bor(bool_12, 0b0000000000100000)
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Depth"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Depth"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Depth"])
 						end
 						if Value["Properties"]["Effects"]["Tremolo"]["Duty"] ~= nil then
-							bool_12 = bit32.bor(bool_12, 0b0000000000001000)
+							bool_12 = bit32.bor(bool_12, 0b0000000001000000)
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Duty"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Duty"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Duty"])
 						end
 						if Value["Properties"]["Effects"]["Tremolo"]["Frequency"] ~= nil then
-							bool_12 = bit32.bor(bool_12, 0b0000000000010000)
+							bool_12 = bit32.bor(bool_12, 0b0000000010000000)
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Frequency"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Frequency"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Frequency"])
 						end
 						if Value["Properties"]["Effects"]["Tremolo"]["Priority"] ~= nil then
-							bool_12 = bit32.bor(bool_12, 0b0000000000100000)
+							bool_12 = bit32.bor(bool_12, 0b0000000100000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Priority"])
 						end
 					end
 				end
 				if Value["Properties"]["DenyBaseProperties"] ~= nil then
-					bool_12 = bit32.bor(bool_12, 0b0000000001000000)
+					bool_12 = bit32.bor(bool_12, 0b0000001000000000)
 					if Value["Properties"]["DenyBaseProperties"] then
-						bool_12 = bit32.bor(bool_12, 0b0000000010000000)
+						bool_12 = bit32.bor(bool_12, 0b0000010000000000)
 					end
 				end
 			end
 			buffer.writeu16(outgoing_buff, bool_9_pos_1, bool_9)
 			buffer.writeu16(outgoing_buff, bool_10_pos_1, bool_10)
 			buffer.writeu16(outgoing_buff, bool_11_pos_1, bool_11)
-			buffer.writeu8(outgoing_buff, bool_12_pos_1, bool_12)
+			buffer.writeu16(outgoing_buff, bool_12_pos_1, bool_12)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for _, player in Players:GetPlayers() do
 				if player ~= Except then
@@ -1569,6 +1663,7 @@ local returns = {
 		end,
 		FireList = function(List: { [unknown]: Player }, Value: ({
 			["SoundName"]: (string),
+			["Position"]: (((vector) | (CFrame))?),
 			["Properties"]: (({
 				["Group"]: ((string)?),
 				["Parent"]: ((Instance)?),
@@ -1646,17 +1741,47 @@ local returns = {
 			local bool_15 = 0
 			local bool_15_pos_1 = alloc(2)
 			local bool_16 = 0
-			local bool_16_pos_1 = alloc(1)
+			local bool_16_pos_1 = alloc(2)
 			local len_7 = #Value["SoundName"]
 			assert(utf8.len(Value["SoundName"]) ~= nil, "value is not valid utf-8")
 			alloc(2)
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_7)
 			alloc(len_7)
 			buffer.writestring(outgoing_buff, outgoing_apos, Value["SoundName"], len_7)
-			if Value["Properties"] ~= nil then
+			local ty_name_4 = typeof(Value["Position"])
+			if ty_name_4 == "Vector3" then
 				bool_13 = bit32.bor(bool_13, 0b0000000000000001)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].x)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].y)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].z)
+			elseif ty_name_4 == "CFrame" then
+				bool_13 = bit32.bor(bool_13, 0b0000000000000010)
+				local axis_4, angle_4 = Value["Position"]:ToAxisAngle()
+				axis_4 = axis_4 * angle_4
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].Position.X)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].Position.Y)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].Position.Z)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, axis_4.X)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, axis_4.Y)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, axis_4.Z)
+			elseif Value["Position"] == nil then
+				bool_13 = bit32.bor(bool_13, 0b0000000000000100)
+			else
+				error("Invalid type")
+			end
+			if Value["Properties"] ~= nil then
+				bool_13 = bit32.bor(bool_13, 0b0000000000001000)
 				if Value["Properties"]["Group"] ~= nil then
-					bool_13 = bit32.bor(bool_13, 0b0000000000000010)
+					bool_13 = bit32.bor(bool_13, 0b0000000000010000)
 					local len_8 = #Value["Properties"]["Group"]
 					assert(utf8.len(Value["Properties"]["Group"]) ~= nil, "value is not valid utf-8")
 					alloc(2)
@@ -1665,62 +1790,62 @@ local returns = {
 					buffer.writestring(outgoing_buff, outgoing_apos, Value["Properties"]["Group"], len_8)
 				end
 				if Value["Properties"]["Parent"] ~= nil then
-					bool_13 = bit32.bor(bool_13, 0b0000000000000100)
+					bool_13 = bit32.bor(bool_13, 0b0000000000100000)
 					table.insert(outgoing_inst, Value["Properties"]["Parent"])
 				end
 				if Value["Properties"]["Volume"] ~= nil then
-					bool_13 = bit32.bor(bool_13, 0b0000000000001000)
+					bool_13 = bit32.bor(bool_13, 0b0000000001000000)
 					assert(Value["Properties"]["Volume"] >= 0, "value is less than 0!")
 					assert(Value["Properties"]["Volume"] <= 1, "value is more than 1!")
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Volume"])
 				end
 				if Value["Properties"]["PlaybackSpeed"] ~= nil then
-					bool_13 = bit32.bor(bool_13, 0b0000000000010000)
+					bool_13 = bit32.bor(bool_13, 0b0000000010000000)
 					assert(Value["Properties"]["PlaybackSpeed"] >= 0, "value is less than 0!")
 					assert(Value["Properties"]["PlaybackSpeed"] <= 15, "value is more than 15!")
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["PlaybackSpeed"])
 				end
 				if Value["Properties"]["PlaybackRegion"] ~= nil then
-					bool_13 = bit32.bor(bool_13, 0b0000000000100000)
+					bool_13 = bit32.bor(bool_13, 0b0000000100000000)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["PlaybackRegion"].x)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["PlaybackRegion"].y)
 				end
 				if Value["Properties"]["RollOff"] ~= nil then
-					bool_13 = bit32.bor(bool_13, 0b0000000001000000)
+					bool_13 = bit32.bor(bool_13, 0b0000001000000000)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["RollOff"].x)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["RollOff"].y)
 				end
 				if Value["Properties"]["Effects"] ~= nil then
-					bool_13 = bit32.bor(bool_13, 0b0000000010000000)
+					bool_13 = bit32.bor(bool_13, 0b0000010000000000)
 					if Value["Properties"]["Effects"]["Chorus"] ~= nil then
-						bool_13 = bit32.bor(bool_13, 0b0000000100000000)
+						bool_13 = bit32.bor(bool_13, 0b0000100000000000)
 						if Value["Properties"]["Effects"]["Chorus"]["Depth"] ~= nil then
-							bool_13 = bit32.bor(bool_13, 0b0000001000000000)
+							bool_13 = bit32.bor(bool_13, 0b0001000000000000)
 							assert(Value["Properties"]["Effects"]["Chorus"]["Depth"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Chorus"]["Depth"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Chorus"]["Depth"])
 						end
 						if Value["Properties"]["Effects"]["Chorus"]["Mix"] ~= nil then
-							bool_13 = bit32.bor(bool_13, 0b0000010000000000)
+							bool_13 = bit32.bor(bool_13, 0b0010000000000000)
 							assert(Value["Properties"]["Effects"]["Chorus"]["Mix"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Chorus"]["Mix"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Chorus"]["Mix"])
 						end
 						if Value["Properties"]["Effects"]["Chorus"]["Priority"] ~= nil then
-							bool_13 = bit32.bor(bool_13, 0b0000100000000000)
+							bool_13 = bit32.bor(bool_13, 0b0100000000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Chorus"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Chorus"]["Rate"] ~= nil then
-							bool_13 = bit32.bor(bool_13, 0b0001000000000000)
+							bool_13 = bit32.bor(bool_13, 0b1000000000000000)
 							assert(Value["Properties"]["Effects"]["Chorus"]["Rate"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Chorus"]["Rate"] <= 20, "value is more than 20!")
 							alloc(4)
@@ -1728,41 +1853,41 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Compressor"] ~= nil then
-						bool_13 = bit32.bor(bool_13, 0b0010000000000000)
+						bool_14 = bit32.bor(bool_14, 0b0000000000000001)
 						if Value["Properties"]["Effects"]["Compressor"]["Attack"] ~= nil then
-							bool_13 = bit32.bor(bool_13, 0b0100000000000000)
+							bool_14 = bit32.bor(bool_14, 0b0000000000000010)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Attack"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["Attack"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Attack"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["GainMakeup"] ~= nil then
-							bool_13 = bit32.bor(bool_13, 0b1000000000000000)
+							bool_14 = bit32.bor(bool_14, 0b0000000000000100)
 							assert(Value["Properties"]["Effects"]["Compressor"]["GainMakeup"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["GainMakeup"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["GainMakeup"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Priority"] ~= nil then
-							bool_14 = bit32.bor(bool_14, 0b0000000000000001)
+							bool_14 = bit32.bor(bool_14, 0b0000000000001000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Ratio"] ~= nil then
-							bool_14 = bit32.bor(bool_14, 0b0000000000000010)
+							bool_14 = bit32.bor(bool_14, 0b0000000000010000)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Ratio"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Ratio"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Release"] ~= nil then
-							bool_14 = bit32.bor(bool_14, 0b0000000000000100)
+							bool_14 = bit32.bor(bool_14, 0b0000000000100000)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Release"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["Release"] <= 5, "value is more than 5!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Release"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Threshold"] ~= nil then
-							bool_14 = bit32.bor(bool_14, 0b0000000000001000)
+							bool_14 = bit32.bor(bool_14, 0b0000000001000000)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Threshold"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["Threshold"] <= 0, "value is more than 0!")
 							alloc(4)
@@ -1770,49 +1895,49 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Distortion"] ~= nil then
-						bool_14 = bit32.bor(bool_14, 0b0000000000010000)
+						bool_14 = bit32.bor(bool_14, 0b0000000010000000)
 						if Value["Properties"]["Effects"]["Distortion"]["Level"] ~= nil then
-							bool_14 = bit32.bor(bool_14, 0b0000000000100000)
+							bool_14 = bit32.bor(bool_14, 0b0000000100000000)
 							assert(Value["Properties"]["Effects"]["Distortion"]["Level"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Distortion"]["Level"])
 						end
 						if Value["Properties"]["Effects"]["Distortion"]["Priority"] ~= nil then
-							bool_14 = bit32.bor(bool_14, 0b0000000001000000)
+							bool_14 = bit32.bor(bool_14, 0b0000001000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Distortion"]["Priority"])
 						end
 					end
 					if Value["Properties"]["Effects"]["Echo"] ~= nil then
-						bool_14 = bit32.bor(bool_14, 0b0000000010000000)
+						bool_14 = bit32.bor(bool_14, 0b0000010000000000)
 						if Value["Properties"]["Effects"]["Echo"]["Delay"] ~= nil then
-							bool_14 = bit32.bor(bool_14, 0b0000000100000000)
+							bool_14 = bit32.bor(bool_14, 0b0000100000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["Delay"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["Delay"] <= 5, "value is more than 5!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["Delay"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["DryLevel"] ~= nil then
-							bool_14 = bit32.bor(bool_14, 0b0000001000000000)
+							bool_14 = bit32.bor(bool_14, 0b0001000000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["DryLevel"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["DryLevel"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["DryLevel"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["Feedback"] ~= nil then
-							bool_14 = bit32.bor(bool_14, 0b0000010000000000)
+							bool_14 = bit32.bor(bool_14, 0b0010000000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["Feedback"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["Feedback"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["Feedback"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["Priority"] ~= nil then
-							bool_14 = bit32.bor(bool_14, 0b0000100000000000)
+							bool_14 = bit32.bor(bool_14, 0b0100000000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["WetLevel"] ~= nil then
-							bool_14 = bit32.bor(bool_14, 0b0001000000000000)
+							bool_14 = bit32.bor(bool_14, 0b1000000000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["WetLevel"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["WetLevel"] <= 1, "value is more than 1!")
 							alloc(4)
@@ -1820,57 +1945,57 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Equalizer"] ~= nil then
-						bool_14 = bit32.bor(bool_14, 0b0010000000000000)
+						bool_15 = bit32.bor(bool_15, 0b0000000000000001)
 						if Value["Properties"]["Effects"]["Equalizer"]["HighGain"] ~= nil then
-							bool_14 = bit32.bor(bool_14, 0b0100000000000000)
+							bool_15 = bit32.bor(bool_15, 0b0000000000000010)
 							assert(Value["Properties"]["Effects"]["Equalizer"]["HighGain"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Equalizer"]["HighGain"] <= 10, "value is more than 10!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["HighGain"])
 						end
 						if Value["Properties"]["Effects"]["Equalizer"]["LowGain"] ~= nil then
-							bool_14 = bit32.bor(bool_14, 0b1000000000000000)
+							bool_15 = bit32.bor(bool_15, 0b0000000000000100)
 							assert(Value["Properties"]["Effects"]["Equalizer"]["LowGain"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Equalizer"]["LowGain"] <= 10, "value is more than 10!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["LowGain"])
 						end
 						if Value["Properties"]["Effects"]["Equalizer"]["MidGain"] ~= nil then
-							bool_15 = bit32.bor(bool_15, 0b0000000000000001)
+							bool_15 = bit32.bor(bool_15, 0b0000000000001000)
 							assert(Value["Properties"]["Effects"]["Equalizer"]["MidGain"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Equalizer"]["MidGain"] <= 10, "value is more than 10!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["MidGain"])
 						end
 						if Value["Properties"]["Effects"]["Equalizer"]["Priority"] ~= nil then
-							bool_15 = bit32.bor(bool_15, 0b0000000000000010)
+							bool_15 = bit32.bor(bool_15, 0b0000000000010000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["Priority"])
 						end
 					end
 					if Value["Properties"]["Effects"]["Flange"] ~= nil then
-						bool_15 = bit32.bor(bool_15, 0b0000000000000100)
+						bool_15 = bit32.bor(bool_15, 0b0000000000100000)
 						if Value["Properties"]["Effects"]["Flange"]["Depth"] ~= nil then
-							bool_15 = bit32.bor(bool_15, 0b0000000000001000)
+							bool_15 = bit32.bor(bool_15, 0b0000000001000000)
 							assert(Value["Properties"]["Effects"]["Flange"]["Depth"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Flange"]["Depth"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Flange"]["Depth"])
 						end
 						if Value["Properties"]["Effects"]["Flange"]["Mix"] ~= nil then
-							bool_15 = bit32.bor(bool_15, 0b0000000000010000)
+							bool_15 = bit32.bor(bool_15, 0b0000000010000000)
 							assert(Value["Properties"]["Effects"]["Flange"]["Mix"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Flange"]["Mix"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Flange"]["Mix"])
 						end
 						if Value["Properties"]["Effects"]["Flange"]["Priority"] ~= nil then
-							bool_15 = bit32.bor(bool_15, 0b0000000000100000)
+							bool_15 = bit32.bor(bool_15, 0b0000000100000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Flange"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Flange"]["Rate"] ~= nil then
-							bool_15 = bit32.bor(bool_15, 0b0000000001000000)
+							bool_15 = bit32.bor(bool_15, 0b0000001000000000)
 							assert(Value["Properties"]["Effects"]["Flange"]["Rate"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Flange"]["Rate"] <= 20, "value is more than 20!")
 							alloc(4)
@@ -1878,57 +2003,57 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["PitchShift"] ~= nil then
-						bool_15 = bit32.bor(bool_15, 0b0000000010000000)
+						bool_15 = bit32.bor(bool_15, 0b0000010000000000)
 						if Value["Properties"]["Effects"]["PitchShift"]["Octave"] ~= nil then
-							bool_15 = bit32.bor(bool_15, 0b0000000100000000)
+							bool_15 = bit32.bor(bool_15, 0b0000100000000000)
 							assert(Value["Properties"]["Effects"]["PitchShift"]["Octave"] >= -1, "value is less than -1!")
 							assert(Value["Properties"]["Effects"]["PitchShift"]["Octave"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["PitchShift"]["Octave"])
 						end
 						if Value["Properties"]["Effects"]["PitchShift"]["Priority"] ~= nil then
-							bool_15 = bit32.bor(bool_15, 0b0000001000000000)
+							bool_15 = bit32.bor(bool_15, 0b0001000000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["PitchShift"]["Priority"])
 						end
 					end
 					if Value["Properties"]["Effects"]["Reverb"] ~= nil then
-						bool_15 = bit32.bor(bool_15, 0b0000010000000000)
+						bool_15 = bit32.bor(bool_15, 0b0010000000000000)
 						if Value["Properties"]["Effects"]["Reverb"]["DecayTime"] ~= nil then
-							bool_15 = bit32.bor(bool_15, 0b0000100000000000)
+							bool_15 = bit32.bor(bool_15, 0b0100000000000000)
 							assert(Value["Properties"]["Effects"]["Reverb"]["DecayTime"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["DecayTime"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["DecayTime"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["Density"] ~= nil then
-							bool_15 = bit32.bor(bool_15, 0b0001000000000000)
+							bool_15 = bit32.bor(bool_15, 0b1000000000000000)
 							assert(Value["Properties"]["Effects"]["Reverb"]["Density"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["Density"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["Density"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["Diffusion"] ~= nil then
-							bool_15 = bit32.bor(bool_15, 0b0010000000000000)
+							bool_16 = bit32.bor(bool_16, 0b0000000000000001)
 							assert(Value["Properties"]["Effects"]["Reverb"]["Diffusion"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["Diffusion"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["Diffusion"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["DryLevel"] ~= nil then
-							bool_15 = bit32.bor(bool_15, 0b0100000000000000)
+							bool_16 = bit32.bor(bool_16, 0b0000000000000010)
 							assert(Value["Properties"]["Effects"]["Reverb"]["DryLevel"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["DryLevel"] <= 0, "value is more than 0!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["DryLevel"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["Priority"] ~= nil then
-							bool_15 = bit32.bor(bool_15, 0b1000000000000000)
+							bool_16 = bit32.bor(bool_16, 0b0000000000000100)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["WetLevel"] ~= nil then
-							bool_16 = bit32.bor(bool_16, 0b0000000000000001)
+							bool_16 = bit32.bor(bool_16, 0b0000000000001000)
 							assert(Value["Properties"]["Effects"]["Reverb"]["WetLevel"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["WetLevel"] <= 0, "value is more than 0!")
 							alloc(4)
@@ -1936,46 +2061,46 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Tremolo"] ~= nil then
-						bool_16 = bit32.bor(bool_16, 0b0000000000000010)
+						bool_16 = bit32.bor(bool_16, 0b0000000000010000)
 						if Value["Properties"]["Effects"]["Tremolo"]["Depth"] ~= nil then
-							bool_16 = bit32.bor(bool_16, 0b0000000000000100)
+							bool_16 = bit32.bor(bool_16, 0b0000000000100000)
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Depth"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Depth"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Depth"])
 						end
 						if Value["Properties"]["Effects"]["Tremolo"]["Duty"] ~= nil then
-							bool_16 = bit32.bor(bool_16, 0b0000000000001000)
+							bool_16 = bit32.bor(bool_16, 0b0000000001000000)
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Duty"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Duty"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Duty"])
 						end
 						if Value["Properties"]["Effects"]["Tremolo"]["Frequency"] ~= nil then
-							bool_16 = bit32.bor(bool_16, 0b0000000000010000)
+							bool_16 = bit32.bor(bool_16, 0b0000000010000000)
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Frequency"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Frequency"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Frequency"])
 						end
 						if Value["Properties"]["Effects"]["Tremolo"]["Priority"] ~= nil then
-							bool_16 = bit32.bor(bool_16, 0b0000000000100000)
+							bool_16 = bit32.bor(bool_16, 0b0000000100000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Priority"])
 						end
 					end
 				end
 				if Value["Properties"]["DenyBaseProperties"] ~= nil then
-					bool_16 = bit32.bor(bool_16, 0b0000000001000000)
+					bool_16 = bit32.bor(bool_16, 0b0000001000000000)
 					if Value["Properties"]["DenyBaseProperties"] then
-						bool_16 = bit32.bor(bool_16, 0b0000000010000000)
+						bool_16 = bit32.bor(bool_16, 0b0000010000000000)
 					end
 				end
 			end
 			buffer.writeu16(outgoing_buff, bool_13_pos_1, bool_13)
 			buffer.writeu16(outgoing_buff, bool_14_pos_1, bool_14)
 			buffer.writeu16(outgoing_buff, bool_15_pos_1, bool_15)
-			buffer.writeu8(outgoing_buff, bool_16_pos_1, bool_16)
+			buffer.writeu16(outgoing_buff, bool_16_pos_1, bool_16)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for _, player in List do
 				load_player(player)
@@ -1987,6 +2112,7 @@ local returns = {
 		end,
 		FireSet = function(Set: { [Player]: any }, Value: ({
 			["SoundName"]: (string),
+			["Position"]: (((vector) | (CFrame))?),
 			["Properties"]: (({
 				["Group"]: ((string)?),
 				["Parent"]: ((Instance)?),
@@ -2064,17 +2190,47 @@ local returns = {
 			local bool_19 = 0
 			local bool_19_pos_1 = alloc(2)
 			local bool_20 = 0
-			local bool_20_pos_1 = alloc(1)
+			local bool_20_pos_1 = alloc(2)
 			local len_9 = #Value["SoundName"]
 			assert(utf8.len(Value["SoundName"]) ~= nil, "value is not valid utf-8")
 			alloc(2)
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_9)
 			alloc(len_9)
 			buffer.writestring(outgoing_buff, outgoing_apos, Value["SoundName"], len_9)
-			if Value["Properties"] ~= nil then
+			local ty_name_5 = typeof(Value["Position"])
+			if ty_name_5 == "Vector3" then
 				bool_17 = bit32.bor(bool_17, 0b0000000000000001)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].x)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].y)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].z)
+			elseif ty_name_5 == "CFrame" then
+				bool_17 = bit32.bor(bool_17, 0b0000000000000010)
+				local axis_5, angle_5 = Value["Position"]:ToAxisAngle()
+				axis_5 = axis_5 * angle_5
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].Position.X)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].Position.Y)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, Value["Position"].Position.Z)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, axis_5.X)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, axis_5.Y)
+				alloc(4)
+				buffer.writef32(outgoing_buff, outgoing_apos, axis_5.Z)
+			elseif Value["Position"] == nil then
+				bool_17 = bit32.bor(bool_17, 0b0000000000000100)
+			else
+				error("Invalid type")
+			end
+			if Value["Properties"] ~= nil then
+				bool_17 = bit32.bor(bool_17, 0b0000000000001000)
 				if Value["Properties"]["Group"] ~= nil then
-					bool_17 = bit32.bor(bool_17, 0b0000000000000010)
+					bool_17 = bit32.bor(bool_17, 0b0000000000010000)
 					local len_10 = #Value["Properties"]["Group"]
 					assert(utf8.len(Value["Properties"]["Group"]) ~= nil, "value is not valid utf-8")
 					alloc(2)
@@ -2083,62 +2239,62 @@ local returns = {
 					buffer.writestring(outgoing_buff, outgoing_apos, Value["Properties"]["Group"], len_10)
 				end
 				if Value["Properties"]["Parent"] ~= nil then
-					bool_17 = bit32.bor(bool_17, 0b0000000000000100)
+					bool_17 = bit32.bor(bool_17, 0b0000000000100000)
 					table.insert(outgoing_inst, Value["Properties"]["Parent"])
 				end
 				if Value["Properties"]["Volume"] ~= nil then
-					bool_17 = bit32.bor(bool_17, 0b0000000000001000)
+					bool_17 = bit32.bor(bool_17, 0b0000000001000000)
 					assert(Value["Properties"]["Volume"] >= 0, "value is less than 0!")
 					assert(Value["Properties"]["Volume"] <= 1, "value is more than 1!")
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Volume"])
 				end
 				if Value["Properties"]["PlaybackSpeed"] ~= nil then
-					bool_17 = bit32.bor(bool_17, 0b0000000000010000)
+					bool_17 = bit32.bor(bool_17, 0b0000000010000000)
 					assert(Value["Properties"]["PlaybackSpeed"] >= 0, "value is less than 0!")
 					assert(Value["Properties"]["PlaybackSpeed"] <= 15, "value is more than 15!")
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["PlaybackSpeed"])
 				end
 				if Value["Properties"]["PlaybackRegion"] ~= nil then
-					bool_17 = bit32.bor(bool_17, 0b0000000000100000)
+					bool_17 = bit32.bor(bool_17, 0b0000000100000000)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["PlaybackRegion"].x)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["PlaybackRegion"].y)
 				end
 				if Value["Properties"]["RollOff"] ~= nil then
-					bool_17 = bit32.bor(bool_17, 0b0000000001000000)
+					bool_17 = bit32.bor(bool_17, 0b0000001000000000)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["RollOff"].x)
 					alloc(4)
 					buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["RollOff"].y)
 				end
 				if Value["Properties"]["Effects"] ~= nil then
-					bool_17 = bit32.bor(bool_17, 0b0000000010000000)
+					bool_17 = bit32.bor(bool_17, 0b0000010000000000)
 					if Value["Properties"]["Effects"]["Chorus"] ~= nil then
-						bool_17 = bit32.bor(bool_17, 0b0000000100000000)
+						bool_17 = bit32.bor(bool_17, 0b0000100000000000)
 						if Value["Properties"]["Effects"]["Chorus"]["Depth"] ~= nil then
-							bool_17 = bit32.bor(bool_17, 0b0000001000000000)
+							bool_17 = bit32.bor(bool_17, 0b0001000000000000)
 							assert(Value["Properties"]["Effects"]["Chorus"]["Depth"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Chorus"]["Depth"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Chorus"]["Depth"])
 						end
 						if Value["Properties"]["Effects"]["Chorus"]["Mix"] ~= nil then
-							bool_17 = bit32.bor(bool_17, 0b0000010000000000)
+							bool_17 = bit32.bor(bool_17, 0b0010000000000000)
 							assert(Value["Properties"]["Effects"]["Chorus"]["Mix"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Chorus"]["Mix"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Chorus"]["Mix"])
 						end
 						if Value["Properties"]["Effects"]["Chorus"]["Priority"] ~= nil then
-							bool_17 = bit32.bor(bool_17, 0b0000100000000000)
+							bool_17 = bit32.bor(bool_17, 0b0100000000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Chorus"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Chorus"]["Rate"] ~= nil then
-							bool_17 = bit32.bor(bool_17, 0b0001000000000000)
+							bool_17 = bit32.bor(bool_17, 0b1000000000000000)
 							assert(Value["Properties"]["Effects"]["Chorus"]["Rate"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Chorus"]["Rate"] <= 20, "value is more than 20!")
 							alloc(4)
@@ -2146,41 +2302,41 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Compressor"] ~= nil then
-						bool_17 = bit32.bor(bool_17, 0b0010000000000000)
+						bool_18 = bit32.bor(bool_18, 0b0000000000000001)
 						if Value["Properties"]["Effects"]["Compressor"]["Attack"] ~= nil then
-							bool_17 = bit32.bor(bool_17, 0b0100000000000000)
+							bool_18 = bit32.bor(bool_18, 0b0000000000000010)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Attack"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["Attack"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Attack"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["GainMakeup"] ~= nil then
-							bool_17 = bit32.bor(bool_17, 0b1000000000000000)
+							bool_18 = bit32.bor(bool_18, 0b0000000000000100)
 							assert(Value["Properties"]["Effects"]["Compressor"]["GainMakeup"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["GainMakeup"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["GainMakeup"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Priority"] ~= nil then
-							bool_18 = bit32.bor(bool_18, 0b0000000000000001)
+							bool_18 = bit32.bor(bool_18, 0b0000000000001000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Ratio"] ~= nil then
-							bool_18 = bit32.bor(bool_18, 0b0000000000000010)
+							bool_18 = bit32.bor(bool_18, 0b0000000000010000)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Ratio"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Ratio"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Release"] ~= nil then
-							bool_18 = bit32.bor(bool_18, 0b0000000000000100)
+							bool_18 = bit32.bor(bool_18, 0b0000000000100000)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Release"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["Release"] <= 5, "value is more than 5!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Compressor"]["Release"])
 						end
 						if Value["Properties"]["Effects"]["Compressor"]["Threshold"] ~= nil then
-							bool_18 = bit32.bor(bool_18, 0b0000000000001000)
+							bool_18 = bit32.bor(bool_18, 0b0000000001000000)
 							assert(Value["Properties"]["Effects"]["Compressor"]["Threshold"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Compressor"]["Threshold"] <= 0, "value is more than 0!")
 							alloc(4)
@@ -2188,49 +2344,49 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Distortion"] ~= nil then
-						bool_18 = bit32.bor(bool_18, 0b0000000000010000)
+						bool_18 = bit32.bor(bool_18, 0b0000000010000000)
 						if Value["Properties"]["Effects"]["Distortion"]["Level"] ~= nil then
-							bool_18 = bit32.bor(bool_18, 0b0000000000100000)
+							bool_18 = bit32.bor(bool_18, 0b0000000100000000)
 							assert(Value["Properties"]["Effects"]["Distortion"]["Level"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Distortion"]["Level"])
 						end
 						if Value["Properties"]["Effects"]["Distortion"]["Priority"] ~= nil then
-							bool_18 = bit32.bor(bool_18, 0b0000000001000000)
+							bool_18 = bit32.bor(bool_18, 0b0000001000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Distortion"]["Priority"])
 						end
 					end
 					if Value["Properties"]["Effects"]["Echo"] ~= nil then
-						bool_18 = bit32.bor(bool_18, 0b0000000010000000)
+						bool_18 = bit32.bor(bool_18, 0b0000010000000000)
 						if Value["Properties"]["Effects"]["Echo"]["Delay"] ~= nil then
-							bool_18 = bit32.bor(bool_18, 0b0000000100000000)
+							bool_18 = bit32.bor(bool_18, 0b0000100000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["Delay"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["Delay"] <= 5, "value is more than 5!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["Delay"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["DryLevel"] ~= nil then
-							bool_18 = bit32.bor(bool_18, 0b0000001000000000)
+							bool_18 = bit32.bor(bool_18, 0b0001000000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["DryLevel"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["DryLevel"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["DryLevel"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["Feedback"] ~= nil then
-							bool_18 = bit32.bor(bool_18, 0b0000010000000000)
+							bool_18 = bit32.bor(bool_18, 0b0010000000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["Feedback"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["Feedback"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["Feedback"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["Priority"] ~= nil then
-							bool_18 = bit32.bor(bool_18, 0b0000100000000000)
+							bool_18 = bit32.bor(bool_18, 0b0100000000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Echo"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Echo"]["WetLevel"] ~= nil then
-							bool_18 = bit32.bor(bool_18, 0b0001000000000000)
+							bool_18 = bit32.bor(bool_18, 0b1000000000000000)
 							assert(Value["Properties"]["Effects"]["Echo"]["WetLevel"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Echo"]["WetLevel"] <= 1, "value is more than 1!")
 							alloc(4)
@@ -2238,57 +2394,57 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Equalizer"] ~= nil then
-						bool_18 = bit32.bor(bool_18, 0b0010000000000000)
+						bool_19 = bit32.bor(bool_19, 0b0000000000000001)
 						if Value["Properties"]["Effects"]["Equalizer"]["HighGain"] ~= nil then
-							bool_18 = bit32.bor(bool_18, 0b0100000000000000)
+							bool_19 = bit32.bor(bool_19, 0b0000000000000010)
 							assert(Value["Properties"]["Effects"]["Equalizer"]["HighGain"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Equalizer"]["HighGain"] <= 10, "value is more than 10!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["HighGain"])
 						end
 						if Value["Properties"]["Effects"]["Equalizer"]["LowGain"] ~= nil then
-							bool_18 = bit32.bor(bool_18, 0b1000000000000000)
+							bool_19 = bit32.bor(bool_19, 0b0000000000000100)
 							assert(Value["Properties"]["Effects"]["Equalizer"]["LowGain"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Equalizer"]["LowGain"] <= 10, "value is more than 10!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["LowGain"])
 						end
 						if Value["Properties"]["Effects"]["Equalizer"]["MidGain"] ~= nil then
-							bool_19 = bit32.bor(bool_19, 0b0000000000000001)
+							bool_19 = bit32.bor(bool_19, 0b0000000000001000)
 							assert(Value["Properties"]["Effects"]["Equalizer"]["MidGain"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Equalizer"]["MidGain"] <= 10, "value is more than 10!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["MidGain"])
 						end
 						if Value["Properties"]["Effects"]["Equalizer"]["Priority"] ~= nil then
-							bool_19 = bit32.bor(bool_19, 0b0000000000000010)
+							bool_19 = bit32.bor(bool_19, 0b0000000000010000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Equalizer"]["Priority"])
 						end
 					end
 					if Value["Properties"]["Effects"]["Flange"] ~= nil then
-						bool_19 = bit32.bor(bool_19, 0b0000000000000100)
+						bool_19 = bit32.bor(bool_19, 0b0000000000100000)
 						if Value["Properties"]["Effects"]["Flange"]["Depth"] ~= nil then
-							bool_19 = bit32.bor(bool_19, 0b0000000000001000)
+							bool_19 = bit32.bor(bool_19, 0b0000000001000000)
 							assert(Value["Properties"]["Effects"]["Flange"]["Depth"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Flange"]["Depth"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Flange"]["Depth"])
 						end
 						if Value["Properties"]["Effects"]["Flange"]["Mix"] ~= nil then
-							bool_19 = bit32.bor(bool_19, 0b0000000000010000)
+							bool_19 = bit32.bor(bool_19, 0b0000000010000000)
 							assert(Value["Properties"]["Effects"]["Flange"]["Mix"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Flange"]["Mix"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Flange"]["Mix"])
 						end
 						if Value["Properties"]["Effects"]["Flange"]["Priority"] ~= nil then
-							bool_19 = bit32.bor(bool_19, 0b0000000000100000)
+							bool_19 = bit32.bor(bool_19, 0b0000000100000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Flange"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Flange"]["Rate"] ~= nil then
-							bool_19 = bit32.bor(bool_19, 0b0000000001000000)
+							bool_19 = bit32.bor(bool_19, 0b0000001000000000)
 							assert(Value["Properties"]["Effects"]["Flange"]["Rate"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Flange"]["Rate"] <= 20, "value is more than 20!")
 							alloc(4)
@@ -2296,57 +2452,57 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["PitchShift"] ~= nil then
-						bool_19 = bit32.bor(bool_19, 0b0000000010000000)
+						bool_19 = bit32.bor(bool_19, 0b0000010000000000)
 						if Value["Properties"]["Effects"]["PitchShift"]["Octave"] ~= nil then
-							bool_19 = bit32.bor(bool_19, 0b0000000100000000)
+							bool_19 = bit32.bor(bool_19, 0b0000100000000000)
 							assert(Value["Properties"]["Effects"]["PitchShift"]["Octave"] >= -1, "value is less than -1!")
 							assert(Value["Properties"]["Effects"]["PitchShift"]["Octave"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["PitchShift"]["Octave"])
 						end
 						if Value["Properties"]["Effects"]["PitchShift"]["Priority"] ~= nil then
-							bool_19 = bit32.bor(bool_19, 0b0000001000000000)
+							bool_19 = bit32.bor(bool_19, 0b0001000000000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["PitchShift"]["Priority"])
 						end
 					end
 					if Value["Properties"]["Effects"]["Reverb"] ~= nil then
-						bool_19 = bit32.bor(bool_19, 0b0000010000000000)
+						bool_19 = bit32.bor(bool_19, 0b0010000000000000)
 						if Value["Properties"]["Effects"]["Reverb"]["DecayTime"] ~= nil then
-							bool_19 = bit32.bor(bool_19, 0b0000100000000000)
+							bool_19 = bit32.bor(bool_19, 0b0100000000000000)
 							assert(Value["Properties"]["Effects"]["Reverb"]["DecayTime"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["DecayTime"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["DecayTime"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["Density"] ~= nil then
-							bool_19 = bit32.bor(bool_19, 0b0001000000000000)
+							bool_19 = bit32.bor(bool_19, 0b1000000000000000)
 							assert(Value["Properties"]["Effects"]["Reverb"]["Density"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["Density"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["Density"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["Diffusion"] ~= nil then
-							bool_19 = bit32.bor(bool_19, 0b0010000000000000)
+							bool_20 = bit32.bor(bool_20, 0b0000000000000001)
 							assert(Value["Properties"]["Effects"]["Reverb"]["Diffusion"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["Diffusion"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["Diffusion"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["DryLevel"] ~= nil then
-							bool_19 = bit32.bor(bool_19, 0b0100000000000000)
+							bool_20 = bit32.bor(bool_20, 0b0000000000000010)
 							assert(Value["Properties"]["Effects"]["Reverb"]["DryLevel"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["DryLevel"] <= 0, "value is more than 0!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["DryLevel"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["Priority"] ~= nil then
-							bool_19 = bit32.bor(bool_19, 0b1000000000000000)
+							bool_20 = bit32.bor(bool_20, 0b0000000000000100)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Reverb"]["Priority"])
 						end
 						if Value["Properties"]["Effects"]["Reverb"]["WetLevel"] ~= nil then
-							bool_20 = bit32.bor(bool_20, 0b0000000000000001)
+							bool_20 = bit32.bor(bool_20, 0b0000000000001000)
 							assert(Value["Properties"]["Effects"]["Reverb"]["WetLevel"] >= -80, "value is less than -80!")
 							assert(Value["Properties"]["Effects"]["Reverb"]["WetLevel"] <= 0, "value is more than 0!")
 							alloc(4)
@@ -2354,46 +2510,46 @@ local returns = {
 						end
 					end
 					if Value["Properties"]["Effects"]["Tremolo"] ~= nil then
-						bool_20 = bit32.bor(bool_20, 0b0000000000000010)
+						bool_20 = bit32.bor(bool_20, 0b0000000000010000)
 						if Value["Properties"]["Effects"]["Tremolo"]["Depth"] ~= nil then
-							bool_20 = bit32.bor(bool_20, 0b0000000000000100)
+							bool_20 = bit32.bor(bool_20, 0b0000000000100000)
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Depth"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Depth"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Depth"])
 						end
 						if Value["Properties"]["Effects"]["Tremolo"]["Duty"] ~= nil then
-							bool_20 = bit32.bor(bool_20, 0b0000000000001000)
+							bool_20 = bit32.bor(bool_20, 0b0000000001000000)
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Duty"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Duty"] <= 1, "value is more than 1!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Duty"])
 						end
 						if Value["Properties"]["Effects"]["Tremolo"]["Frequency"] ~= nil then
-							bool_20 = bit32.bor(bool_20, 0b0000000000010000)
+							bool_20 = bit32.bor(bool_20, 0b0000000010000000)
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Frequency"] >= 0, "value is less than 0!")
 							assert(Value["Properties"]["Effects"]["Tremolo"]["Frequency"] <= 20, "value is more than 20!")
 							alloc(4)
 							buffer.writef32(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Frequency"])
 						end
 						if Value["Properties"]["Effects"]["Tremolo"]["Priority"] ~= nil then
-							bool_20 = bit32.bor(bool_20, 0b0000000000100000)
+							bool_20 = bit32.bor(bool_20, 0b0000000100000000)
 							alloc(1)
 							buffer.writeu8(outgoing_buff, outgoing_apos, Value["Properties"]["Effects"]["Tremolo"]["Priority"])
 						end
 					end
 				end
 				if Value["Properties"]["DenyBaseProperties"] ~= nil then
-					bool_20 = bit32.bor(bool_20, 0b0000000001000000)
+					bool_20 = bit32.bor(bool_20, 0b0000001000000000)
 					if Value["Properties"]["DenyBaseProperties"] then
-						bool_20 = bit32.bor(bool_20, 0b0000000010000000)
+						bool_20 = bit32.bor(bool_20, 0b0000010000000000)
 					end
 				end
 			end
 			buffer.writeu16(outgoing_buff, bool_17_pos_1, bool_17)
 			buffer.writeu16(outgoing_buff, bool_18_pos_1, bool_18)
 			buffer.writeu16(outgoing_buff, bool_19_pos_1, bool_19)
-			buffer.writeu8(outgoing_buff, bool_20_pos_1, bool_20)
+			buffer.writeu16(outgoing_buff, bool_20_pos_1, bool_20)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for player in Set do
 				load_player(player)

@@ -130,7 +130,7 @@ if not RunService:IsRunning() then
 	local noop = function() end
 	return table.freeze({
 		SendEvents = noop,
-		PlaySound = table.freeze({
+		ReplicateSound = table.freeze({
 			SetCallback = noop
 		}),
 	}) :: Events
@@ -143,6 +143,21 @@ local remotes = ReplicatedStorage:WaitForChild("ZAP")
 local reliable = remotes:WaitForChild("SoundService_RELIABLE")
 assert(reliable:IsA("RemoteEvent"), "Expected SoundService_RELIABLE to be a RemoteEvent")
 
+export type Compressor = ({
+	["Attack"]: ((number)?),
+	["GainMakeup"]: ((number)?),
+	["Priority"]: ((number)?),
+	["Ratio"]: ((number)?),
+	["Release"]: ((number)?),
+	["Threshold"]: ((number)?),
+})
+export type Tremolo = ({
+	["Depth"]: ((number)?),
+	["Duty"]: ((number)?),
+	["Frequency"]: ((number)?),
+	["Priority"]: ((number)?),
+})
+export type position = ((vector) | (CFrame))
 export type Reverb = ({
 	["DecayTime"]: ((number)?),
 	["Density"]: ((number)?),
@@ -157,8 +172,8 @@ export type Equalizer = ({
 	["MidGain"]: ((number)?),
 	["Priority"]: ((number)?),
 })
-export type PitchShift = ({
-	["Octave"]: ((number)?),
+export type Distortion = ({
+	["Level"]: ((number)?),
 	["Priority"]: ((number)?),
 })
 export type soundProperties = ({
@@ -227,35 +242,21 @@ export type soundProperties = ({
 	})?),
 	["DenyBaseProperties"]: ((boolean)?),
 })
-export type Distortion = ({
-	["Level"]: ((number)?),
-	["Priority"]: ((number)?),
-})
-export type Compressor = ({
-	["Attack"]: ((number)?),
-	["GainMakeup"]: ((number)?),
-	["Priority"]: ((number)?),
-	["Ratio"]: ((number)?),
-	["Release"]: ((number)?),
-	["Threshold"]: ((number)?),
-})
 export type Flange = ({
 	["Depth"]: ((number)?),
 	["Mix"]: ((number)?),
 	["Priority"]: ((number)?),
 	["Rate"]: ((number)?),
 })
+export type PitchShift = ({
+	["Octave"]: ((number)?),
+	["Priority"]: ((number)?),
+})
 export type Chorus = ({
 	["Depth"]: ((number)?),
 	["Mix"]: ((number)?),
 	["Priority"]: ((number)?),
 	["Rate"]: ((number)?),
-})
-export type Tremolo = ({
-	["Depth"]: ((number)?),
-	["Duty"]: ((number)?),
-	["Frequency"]: ((number)?),
-	["Priority"]: ((number)?),
 })
 export type Echo = ({
 	["Delay"]: ((number)?),
@@ -297,74 +298,88 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 			local bool_1 = buffer.readu16(incoming_buff, read(2))
 			local bool_2 = buffer.readu16(incoming_buff, read(2))
 			local bool_3 = buffer.readu16(incoming_buff, read(2))
-			local bool_4 = buffer.readu8(incoming_buff, read(1))
+			local bool_4 = buffer.readu16(incoming_buff, read(2))
 			value = {  }
 			local len_1 = buffer.readu16(incoming_buff, read(2))
 			value["SoundName"] = buffer.readstring(incoming_buff, read(len_1), len_1)
 			assert(utf8.len(value["SoundName"]) ~= nil, "value is not valid utf-8")
 			if bit32.btest(bool_1, 0b0000000000000001) then
+				value["Position"] = vector.create(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
+			elseif bit32.btest(bool_1, 0b0000000000000010) then
+				local pos_1 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
+				local axisangle_1 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
+				local angle_1 = axisangle_1.Magnitude
+				if angle_1 ~= 0 then
+					value["Position"] = CFrame.fromAxisAngle(axisangle_1, angle_1) + pos_1
+				else
+					value["Position"] = CFrame.new(pos_1)
+				end
+			elseif bit32.btest(bool_1, 0b0000000000000100) then
+				value["Position"] = nil
+			end
+			if bit32.btest(bool_1, 0b0000000000001000) then
 				value["Properties"] = {  }
-				if bit32.btest(bool_1, 0b0000000000000010) then
+				if bit32.btest(bool_1, 0b0000000000010000) then
 					local len_2 = buffer.readu16(incoming_buff, read(2))
 					value["Properties"]["Group"] = buffer.readstring(incoming_buff, read(len_2), len_2)
 					assert(utf8.len(value["Properties"]["Group"]) ~= nil, "value is not valid utf-8")
 				else
 					value["Properties"]["Group"] = nil
 				end
-				if bit32.btest(bool_1, 0b0000000000000100) then
+				if bit32.btest(bool_1, 0b0000000000100000) then
 					incoming_ipos = incoming_ipos + 1
 					value["Properties"]["Parent"] = incoming_inst[incoming_ipos]
 				else
 					value["Properties"]["Parent"] = nil
 				end
-				if bit32.btest(bool_1, 0b0000000000001000) then
+				if bit32.btest(bool_1, 0b0000000001000000) then
 					value["Properties"]["Volume"] = buffer.readf32(incoming_buff, read(4))
 					assert(value["Properties"]["Volume"] >= 0, "value is less than 0!")
 					assert(value["Properties"]["Volume"] <= 1, "value is more than 1!")
 				else
 					value["Properties"]["Volume"] = nil
 				end
-				if bit32.btest(bool_1, 0b0000000000010000) then
+				if bit32.btest(bool_1, 0b0000000010000000) then
 					value["Properties"]["PlaybackSpeed"] = buffer.readf32(incoming_buff, read(4))
 					assert(value["Properties"]["PlaybackSpeed"] >= 0, "value is less than 0!")
 					assert(value["Properties"]["PlaybackSpeed"] <= 15, "value is more than 15!")
 				else
 					value["Properties"]["PlaybackSpeed"] = nil
 				end
-				if bit32.btest(bool_1, 0b0000000000100000) then
+				if bit32.btest(bool_1, 0b0000000100000000) then
 					value["Properties"]["PlaybackRegion"] = vector.create(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), 0)
 				else
 					value["Properties"]["PlaybackRegion"] = nil
 				end
-				if bit32.btest(bool_1, 0b0000000001000000) then
+				if bit32.btest(bool_1, 0b0000001000000000) then
 					value["Properties"]["RollOff"] = vector.create(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), 0)
 				else
 					value["Properties"]["RollOff"] = nil
 				end
-				if bit32.btest(bool_1, 0b0000000010000000) then
+				if bit32.btest(bool_1, 0b0000010000000000) then
 					value["Properties"]["Effects"] = {  }
-					if bit32.btest(bool_1, 0b0000000100000000) then
+					if bit32.btest(bool_1, 0b0000100000000000) then
 						value["Properties"]["Effects"]["Chorus"] = {  }
-						if bit32.btest(bool_1, 0b0000001000000000) then
+						if bit32.btest(bool_1, 0b0001000000000000) then
 							value["Properties"]["Effects"]["Chorus"]["Depth"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Chorus"]["Depth"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Chorus"]["Depth"] <= 1, "value is more than 1!")
 						else
 							value["Properties"]["Effects"]["Chorus"]["Depth"] = nil
 						end
-						if bit32.btest(bool_1, 0b0000010000000000) then
+						if bit32.btest(bool_1, 0b0010000000000000) then
 							value["Properties"]["Effects"]["Chorus"]["Mix"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Chorus"]["Mix"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Chorus"]["Mix"] <= 1, "value is more than 1!")
 						else
 							value["Properties"]["Effects"]["Chorus"]["Mix"] = nil
 						end
-						if bit32.btest(bool_1, 0b0000100000000000) then
+						if bit32.btest(bool_1, 0b0100000000000000) then
 							value["Properties"]["Effects"]["Chorus"]["Priority"] = buffer.readu8(incoming_buff, read(1))
 						else
 							value["Properties"]["Effects"]["Chorus"]["Priority"] = nil
 						end
-						if bit32.btest(bool_1, 0b0001000000000000) then
+						if bit32.btest(bool_1, 0b1000000000000000) then
 							value["Properties"]["Effects"]["Chorus"]["Rate"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Chorus"]["Rate"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Chorus"]["Rate"] <= 20, "value is more than 20!")
@@ -374,41 +389,41 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 					else
 						value["Properties"]["Effects"]["Chorus"] = nil
 					end
-					if bit32.btest(bool_1, 0b0010000000000000) then
+					if bit32.btest(bool_2, 0b0000000000000001) then
 						value["Properties"]["Effects"]["Compressor"] = {  }
-						if bit32.btest(bool_1, 0b0100000000000000) then
+						if bit32.btest(bool_2, 0b0000000000000010) then
 							value["Properties"]["Effects"]["Compressor"]["Attack"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Compressor"]["Attack"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Compressor"]["Attack"] <= 1, "value is more than 1!")
 						else
 							value["Properties"]["Effects"]["Compressor"]["Attack"] = nil
 						end
-						if bit32.btest(bool_1, 0b1000000000000000) then
+						if bit32.btest(bool_2, 0b0000000000000100) then
 							value["Properties"]["Effects"]["Compressor"]["GainMakeup"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Compressor"]["GainMakeup"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Compressor"]["GainMakeup"] <= 20, "value is more than 20!")
 						else
 							value["Properties"]["Effects"]["Compressor"]["GainMakeup"] = nil
 						end
-						if bit32.btest(bool_2, 0b0000000000000001) then
+						if bit32.btest(bool_2, 0b0000000000001000) then
 							value["Properties"]["Effects"]["Compressor"]["Priority"] = buffer.readu8(incoming_buff, read(1))
 						else
 							value["Properties"]["Effects"]["Compressor"]["Priority"] = nil
 						end
-						if bit32.btest(bool_2, 0b0000000000000010) then
+						if bit32.btest(bool_2, 0b0000000000010000) then
 							value["Properties"]["Effects"]["Compressor"]["Ratio"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Compressor"]["Ratio"] <= 20, "value is more than 20!")
 						else
 							value["Properties"]["Effects"]["Compressor"]["Ratio"] = nil
 						end
-						if bit32.btest(bool_2, 0b0000000000000100) then
+						if bit32.btest(bool_2, 0b0000000000100000) then
 							value["Properties"]["Effects"]["Compressor"]["Release"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Compressor"]["Release"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Compressor"]["Release"] <= 5, "value is more than 5!")
 						else
 							value["Properties"]["Effects"]["Compressor"]["Release"] = nil
 						end
-						if bit32.btest(bool_2, 0b0000000000001000) then
+						if bit32.btest(bool_2, 0b0000000001000000) then
 							value["Properties"]["Effects"]["Compressor"]["Threshold"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Compressor"]["Threshold"] >= -80, "value is less than -80!")
 							assert(value["Properties"]["Effects"]["Compressor"]["Threshold"] <= 0, "value is more than 0!")
@@ -418,15 +433,15 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 					else
 						value["Properties"]["Effects"]["Compressor"] = nil
 					end
-					if bit32.btest(bool_2, 0b0000000000010000) then
+					if bit32.btest(bool_2, 0b0000000010000000) then
 						value["Properties"]["Effects"]["Distortion"] = {  }
-						if bit32.btest(bool_2, 0b0000000000100000) then
+						if bit32.btest(bool_2, 0b0000000100000000) then
 							value["Properties"]["Effects"]["Distortion"]["Level"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Distortion"]["Level"] <= 1, "value is more than 1!")
 						else
 							value["Properties"]["Effects"]["Distortion"]["Level"] = nil
 						end
-						if bit32.btest(bool_2, 0b0000000001000000) then
+						if bit32.btest(bool_2, 0b0000001000000000) then
 							value["Properties"]["Effects"]["Distortion"]["Priority"] = buffer.readu8(incoming_buff, read(1))
 						else
 							value["Properties"]["Effects"]["Distortion"]["Priority"] = nil
@@ -434,35 +449,35 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 					else
 						value["Properties"]["Effects"]["Distortion"] = nil
 					end
-					if bit32.btest(bool_2, 0b0000000010000000) then
+					if bit32.btest(bool_2, 0b0000010000000000) then
 						value["Properties"]["Effects"]["Echo"] = {  }
-						if bit32.btest(bool_2, 0b0000000100000000) then
+						if bit32.btest(bool_2, 0b0000100000000000) then
 							value["Properties"]["Effects"]["Echo"]["Delay"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Echo"]["Delay"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Echo"]["Delay"] <= 5, "value is more than 5!")
 						else
 							value["Properties"]["Effects"]["Echo"]["Delay"] = nil
 						end
-						if bit32.btest(bool_2, 0b0000001000000000) then
+						if bit32.btest(bool_2, 0b0001000000000000) then
 							value["Properties"]["Effects"]["Echo"]["DryLevel"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Echo"]["DryLevel"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Echo"]["DryLevel"] <= 1, "value is more than 1!")
 						else
 							value["Properties"]["Effects"]["Echo"]["DryLevel"] = nil
 						end
-						if bit32.btest(bool_2, 0b0000010000000000) then
+						if bit32.btest(bool_2, 0b0010000000000000) then
 							value["Properties"]["Effects"]["Echo"]["Feedback"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Echo"]["Feedback"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Echo"]["Feedback"] <= 1, "value is more than 1!")
 						else
 							value["Properties"]["Effects"]["Echo"]["Feedback"] = nil
 						end
-						if bit32.btest(bool_2, 0b0000100000000000) then
+						if bit32.btest(bool_2, 0b0100000000000000) then
 							value["Properties"]["Effects"]["Echo"]["Priority"] = buffer.readu8(incoming_buff, read(1))
 						else
 							value["Properties"]["Effects"]["Echo"]["Priority"] = nil
 						end
-						if bit32.btest(bool_2, 0b0001000000000000) then
+						if bit32.btest(bool_2, 0b1000000000000000) then
 							value["Properties"]["Effects"]["Echo"]["WetLevel"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Echo"]["WetLevel"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Echo"]["WetLevel"] <= 1, "value is more than 1!")
@@ -472,30 +487,30 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 					else
 						value["Properties"]["Effects"]["Echo"] = nil
 					end
-					if bit32.btest(bool_2, 0b0010000000000000) then
+					if bit32.btest(bool_3, 0b0000000000000001) then
 						value["Properties"]["Effects"]["Equalizer"] = {  }
-						if bit32.btest(bool_2, 0b0100000000000000) then
+						if bit32.btest(bool_3, 0b0000000000000010) then
 							value["Properties"]["Effects"]["Equalizer"]["HighGain"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Equalizer"]["HighGain"] >= -80, "value is less than -80!")
 							assert(value["Properties"]["Effects"]["Equalizer"]["HighGain"] <= 10, "value is more than 10!")
 						else
 							value["Properties"]["Effects"]["Equalizer"]["HighGain"] = nil
 						end
-						if bit32.btest(bool_2, 0b1000000000000000) then
+						if bit32.btest(bool_3, 0b0000000000000100) then
 							value["Properties"]["Effects"]["Equalizer"]["LowGain"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Equalizer"]["LowGain"] >= -80, "value is less than -80!")
 							assert(value["Properties"]["Effects"]["Equalizer"]["LowGain"] <= 10, "value is more than 10!")
 						else
 							value["Properties"]["Effects"]["Equalizer"]["LowGain"] = nil
 						end
-						if bit32.btest(bool_3, 0b0000000000000001) then
+						if bit32.btest(bool_3, 0b0000000000001000) then
 							value["Properties"]["Effects"]["Equalizer"]["MidGain"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Equalizer"]["MidGain"] >= -80, "value is less than -80!")
 							assert(value["Properties"]["Effects"]["Equalizer"]["MidGain"] <= 10, "value is more than 10!")
 						else
 							value["Properties"]["Effects"]["Equalizer"]["MidGain"] = nil
 						end
-						if bit32.btest(bool_3, 0b0000000000000010) then
+						if bit32.btest(bool_3, 0b0000000000010000) then
 							value["Properties"]["Effects"]["Equalizer"]["Priority"] = buffer.readu8(incoming_buff, read(1))
 						else
 							value["Properties"]["Effects"]["Equalizer"]["Priority"] = nil
@@ -503,28 +518,28 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 					else
 						value["Properties"]["Effects"]["Equalizer"] = nil
 					end
-					if bit32.btest(bool_3, 0b0000000000000100) then
+					if bit32.btest(bool_3, 0b0000000000100000) then
 						value["Properties"]["Effects"]["Flange"] = {  }
-						if bit32.btest(bool_3, 0b0000000000001000) then
+						if bit32.btest(bool_3, 0b0000000001000000) then
 							value["Properties"]["Effects"]["Flange"]["Depth"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Flange"]["Depth"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Flange"]["Depth"] <= 1, "value is more than 1!")
 						else
 							value["Properties"]["Effects"]["Flange"]["Depth"] = nil
 						end
-						if bit32.btest(bool_3, 0b0000000000010000) then
+						if bit32.btest(bool_3, 0b0000000010000000) then
 							value["Properties"]["Effects"]["Flange"]["Mix"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Flange"]["Mix"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Flange"]["Mix"] <= 1, "value is more than 1!")
 						else
 							value["Properties"]["Effects"]["Flange"]["Mix"] = nil
 						end
-						if bit32.btest(bool_3, 0b0000000000100000) then
+						if bit32.btest(bool_3, 0b0000000100000000) then
 							value["Properties"]["Effects"]["Flange"]["Priority"] = buffer.readu8(incoming_buff, read(1))
 						else
 							value["Properties"]["Effects"]["Flange"]["Priority"] = nil
 						end
-						if bit32.btest(bool_3, 0b0000000001000000) then
+						if bit32.btest(bool_3, 0b0000001000000000) then
 							value["Properties"]["Effects"]["Flange"]["Rate"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Flange"]["Rate"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Flange"]["Rate"] <= 20, "value is more than 20!")
@@ -534,16 +549,16 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 					else
 						value["Properties"]["Effects"]["Flange"] = nil
 					end
-					if bit32.btest(bool_3, 0b0000000010000000) then
+					if bit32.btest(bool_3, 0b0000010000000000) then
 						value["Properties"]["Effects"]["PitchShift"] = {  }
-						if bit32.btest(bool_3, 0b0000000100000000) then
+						if bit32.btest(bool_3, 0b0000100000000000) then
 							value["Properties"]["Effects"]["PitchShift"]["Octave"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["PitchShift"]["Octave"] >= -1, "value is less than -1!")
 							assert(value["Properties"]["Effects"]["PitchShift"]["Octave"] <= 1, "value is more than 1!")
 						else
 							value["Properties"]["Effects"]["PitchShift"]["Octave"] = nil
 						end
-						if bit32.btest(bool_3, 0b0000001000000000) then
+						if bit32.btest(bool_3, 0b0001000000000000) then
 							value["Properties"]["Effects"]["PitchShift"]["Priority"] = buffer.readu8(incoming_buff, read(1))
 						else
 							value["Properties"]["Effects"]["PitchShift"]["Priority"] = nil
@@ -551,42 +566,42 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 					else
 						value["Properties"]["Effects"]["PitchShift"] = nil
 					end
-					if bit32.btest(bool_3, 0b0000010000000000) then
+					if bit32.btest(bool_3, 0b0010000000000000) then
 						value["Properties"]["Effects"]["Reverb"] = {  }
-						if bit32.btest(bool_3, 0b0000100000000000) then
+						if bit32.btest(bool_3, 0b0100000000000000) then
 							value["Properties"]["Effects"]["Reverb"]["DecayTime"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Reverb"]["DecayTime"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Reverb"]["DecayTime"] <= 20, "value is more than 20!")
 						else
 							value["Properties"]["Effects"]["Reverb"]["DecayTime"] = nil
 						end
-						if bit32.btest(bool_3, 0b0001000000000000) then
+						if bit32.btest(bool_3, 0b1000000000000000) then
 							value["Properties"]["Effects"]["Reverb"]["Density"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Reverb"]["Density"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Reverb"]["Density"] <= 1, "value is more than 1!")
 						else
 							value["Properties"]["Effects"]["Reverb"]["Density"] = nil
 						end
-						if bit32.btest(bool_3, 0b0010000000000000) then
+						if bit32.btest(bool_4, 0b0000000000000001) then
 							value["Properties"]["Effects"]["Reverb"]["Diffusion"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Reverb"]["Diffusion"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Reverb"]["Diffusion"] <= 1, "value is more than 1!")
 						else
 							value["Properties"]["Effects"]["Reverb"]["Diffusion"] = nil
 						end
-						if bit32.btest(bool_3, 0b0100000000000000) then
+						if bit32.btest(bool_4, 0b0000000000000010) then
 							value["Properties"]["Effects"]["Reverb"]["DryLevel"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Reverb"]["DryLevel"] >= -80, "value is less than -80!")
 							assert(value["Properties"]["Effects"]["Reverb"]["DryLevel"] <= 0, "value is more than 0!")
 						else
 							value["Properties"]["Effects"]["Reverb"]["DryLevel"] = nil
 						end
-						if bit32.btest(bool_3, 0b1000000000000000) then
+						if bit32.btest(bool_4, 0b0000000000000100) then
 							value["Properties"]["Effects"]["Reverb"]["Priority"] = buffer.readu8(incoming_buff, read(1))
 						else
 							value["Properties"]["Effects"]["Reverb"]["Priority"] = nil
 						end
-						if bit32.btest(bool_4, 0b0000000000000001) then
+						if bit32.btest(bool_4, 0b0000000000001000) then
 							value["Properties"]["Effects"]["Reverb"]["WetLevel"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Reverb"]["WetLevel"] >= -80, "value is less than -80!")
 							assert(value["Properties"]["Effects"]["Reverb"]["WetLevel"] <= 0, "value is more than 0!")
@@ -596,30 +611,30 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 					else
 						value["Properties"]["Effects"]["Reverb"] = nil
 					end
-					if bit32.btest(bool_4, 0b0000000000000010) then
+					if bit32.btest(bool_4, 0b0000000000010000) then
 						value["Properties"]["Effects"]["Tremolo"] = {  }
-						if bit32.btest(bool_4, 0b0000000000000100) then
+						if bit32.btest(bool_4, 0b0000000000100000) then
 							value["Properties"]["Effects"]["Tremolo"]["Depth"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Tremolo"]["Depth"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Tremolo"]["Depth"] <= 1, "value is more than 1!")
 						else
 							value["Properties"]["Effects"]["Tremolo"]["Depth"] = nil
 						end
-						if bit32.btest(bool_4, 0b0000000000001000) then
+						if bit32.btest(bool_4, 0b0000000001000000) then
 							value["Properties"]["Effects"]["Tremolo"]["Duty"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Tremolo"]["Duty"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Tremolo"]["Duty"] <= 1, "value is more than 1!")
 						else
 							value["Properties"]["Effects"]["Tremolo"]["Duty"] = nil
 						end
-						if bit32.btest(bool_4, 0b0000000000010000) then
+						if bit32.btest(bool_4, 0b0000000010000000) then
 							value["Properties"]["Effects"]["Tremolo"]["Frequency"] = buffer.readf32(incoming_buff, read(4))
 							assert(value["Properties"]["Effects"]["Tremolo"]["Frequency"] >= 0, "value is less than 0!")
 							assert(value["Properties"]["Effects"]["Tremolo"]["Frequency"] <= 20, "value is more than 20!")
 						else
 							value["Properties"]["Effects"]["Tremolo"]["Frequency"] = nil
 						end
-						if bit32.btest(bool_4, 0b0000000000100000) then
+						if bit32.btest(bool_4, 0b0000000100000000) then
 							value["Properties"]["Effects"]["Tremolo"]["Priority"] = buffer.readu8(incoming_buff, read(1))
 						else
 							value["Properties"]["Effects"]["Tremolo"]["Priority"] = nil
@@ -630,8 +645,8 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 				else
 					value["Properties"]["Effects"] = nil
 				end
-				if bit32.btest(bool_4, 0b0000000001000000) then
-					value["Properties"]["DenyBaseProperties"] = bit32.btest(bool_4, 0b0000000010000000)
+				if bit32.btest(bool_4, 0b0000001000000000) then
+					value["Properties"]["DenyBaseProperties"] = bit32.btest(bool_4, 0b0000010000000000)
 				else
 					value["Properties"]["DenyBaseProperties"] = nil
 				end
@@ -643,7 +658,7 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 			else
 				table.insert(reliable_event_queue[0], value)
 				if #reliable_event_queue[0] > 64 then
-					warn(`[ZAP] {#reliable_event_queue[0]} events in queue for PlaySound. Did you forget to attach a listener?`)
+					warn(`[ZAP] {#reliable_event_queue[0]} events in queue for ReplicateSound. Did you forget to attach a listener?`)
 				end
 			end
 		else
@@ -656,9 +671,10 @@ table.freeze(polling_queues_unreliable)
 
 local returns = {
 	SendEvents = SendEvents,
-	PlaySound = {
+	ReplicateSound = {
 		SetCallback = function(Callback: (Value: ({
 			["SoundName"]: (string),
+			["Position"]: (((vector) | (CFrame))?),
 			["Properties"]: (({
 				["Group"]: ((string)?),
 				["Parent"]: ((Instance)?),
