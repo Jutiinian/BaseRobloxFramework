@@ -7,7 +7,7 @@ local BaseProperties = require(script.Parent.BaseProperties)
 local SoundGroups = require(script.Parent.SoundGroups)
 local applySoundEffects = require(script.Parent.SoundEffects)
 
-local SoundRegistry = require(ReplicatedStorage.Shared.Assets.SoundRegistry)
+local SoundRegistry = require(ReplicatedStorage.Shared.Modules.Registries.SoundRegistry)
 
 local CreateTween = require(ReplicatedStorage.Shared.Utils.CreateTween)
 local ObjectPool = require(ReplicatedStorage.Shared.Classes.ObjectPool)
