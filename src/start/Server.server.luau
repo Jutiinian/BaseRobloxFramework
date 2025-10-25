@@ -2,12 +2,11 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- || Dependencies || --
-local FrameworkClient = ReplicatedStorage:WaitForChild("FrameworkClient")
+local Framework = require(ReplicatedStorage.Shared.Framework)
 
 -- || Initializer || --
-require(FrameworkClient)
-	.Start()
+Framework.Start()
 	:andThen(function()
-		print("(Client) Framework Started!")
+		print("(Server) Framework Started!")
 	end)
 	:catch(warn)
