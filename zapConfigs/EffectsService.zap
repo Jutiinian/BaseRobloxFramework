@@ -24,7 +24,7 @@ event ReplicateEffectReliable = {
     type: Reliable,
     call: SingleAsync,
     data: struct {
-        Effect: string.utf8,
+        Effect: string.utf8(..25),
         Arguments: effectArguments
     }
 }
@@ -34,7 +34,7 @@ event ReplicateEffectUnreliable = {
     type: Unreliable,
     call: SingleAsync,
     data: struct {
-        Effect: string.utf8,
+        Effect: string.utf8(..20),
         Arguments: effectArguments
     }
 }
