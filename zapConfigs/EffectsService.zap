@@ -1,0 +1,40 @@
+opt server_output = "../src/network/Server/EffectsServiceNetwork.luau"
+opt client_output = "../src/network/Client/EffectsServiceNetwork.luau"
+
+opt remote_scope = "EffectsService"
+opt casing = "PascalCase"
+
+opt yield_type = "promise"
+opt async_lib = "require(game:GetService('ReplicatedStorage').Packages.Promise)"
+
+type listArgument = unknown
+
+type effectArguments = enum "Effect" {
+    Test {
+        value: struct {
+            Position: vector,
+        }
+    },
+
+    
+}
+
+event ReplicateEffectReliable = {
+    from: Server,
+    type: Reliable,
+    call: SingleAsync,
+    data: struct {
+        Effect: string.utf8,
+        Arguments: effectArguments
+    }
+}
+
+event ReplicateEffectUnreliable = {
+    from: Server,
+    type: Unreliable,
+    call: SingleAsync,
+    data: struct {
+        Effect: string.utf8,
+        Arguments: effectArguments
+    }
+}
