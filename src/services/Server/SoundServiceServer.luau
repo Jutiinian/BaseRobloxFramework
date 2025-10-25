@@ -40,7 +40,7 @@ export type SoundServiceServer = typeof(SoundServiceServer)
 --[[
     Does nothing for now...
 ]]
-function SoundServiceServer.Init(self: SoundServiceServer) end
+function SoundServiceServer.Init() end
 
 --[[
 	Plays a sound on the specified target(s)
@@ -48,7 +48,7 @@ function SoundServiceServer.Init(self: SoundServiceServer) end
 	- If a list of Players is given, sound is broadcast to that list
 	- Should be used when the sound does not require positional audio
 ]]
-function SoundServiceServer.PlaySound(self: SoundServiceServer, target: Player | { Player }, soundName: string, props: soundProperties?): ()
+function SoundServiceServer:PlaySound(target: Player | { Player }, soundName: string, props: soundProperties?): ()
 	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
 
 	if typeof(target) == "Player" then
@@ -76,7 +76,7 @@ end
 	Play a sound for EVERY player in the game
 	- No position required (UI notifications, music stings, etc.)
 ]]
-function SoundServiceServer.PlaySoundForAll(self: SoundServiceServer, soundName: string, props: soundProperties?): ()
+function SoundServiceServer:PlaySoundForAll(soundName: string, props: soundProperties?): ()
 	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
 
 	SoundServiceNetwork.ReplicateSound.FireAll({ SoundName = soundName, Properties = props })
@@ -87,7 +87,7 @@ end
 	- Good for personal-world sound replication like hit markers or interactions
 	- Position-based playback only affects how clients hear it
 ]]
-function SoundServiceServer.PlaySoundAt(self: SoundServiceServer, target: Player | { Player }, position: Vector3 | CFrame, soundName: string, props: soundProperties?): ()
+function SoundServiceServer:PlaySoundAt(target: Player | { Player }, position: Vector3 | CFrame, soundName: string, props: soundProperties?): ()
 	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
 
 	if typeof(target) == "Player" then
@@ -115,7 +115,7 @@ end
 	Play a 3D sound at a position for EVERY player
 	- Useful for loud global events (boss landing, thunder strike, etc.)
 ]]
-function SoundServiceServer.PlaySoundAtForAll(self: SoundServiceServer, position: Vector3 | CFrame, soundName: string, props: soundProperties?): ()
+function SoundServiceServer:PlaySoundAtForAll(position: Vector3 | CFrame, soundName: string, props: soundProperties?): ()
 	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
 
 	SoundServiceNetwork.ReplicateSound.FireAll({ Position = position, SoundName = soundName, Properties = props })

@@ -223,7 +223,7 @@ function SoundServiceClient.SetGroupVolume(self: SoundServiceClient, groupName: 
 end
 
 -- Internal / Private Functions
-function SoundServiceClient._FadeVolume(self: SoundServiceClient, sound: Sound, targetVolume: number, duration: number): Tween?
+function SoundServiceClient:_FadeVolume(sound: Sound, targetVolume: number, duration: number): Tween?
 	if duration <= 0 then
 		sound.Volume = 0
 		return
@@ -236,7 +236,7 @@ function SoundServiceClient._FadeVolume(self: SoundServiceClient, sound: Sound, 
 	return tween
 end
 
-function SoundServiceClient._ResetSound(self: SoundServiceClient, sound: Sound, parent: Instance?): ()
+function SoundServiceClient:_ResetSound(sound: Sound, parent: Instance?): ()
 	if sound.IsPlaying then
 		sound:Stop()
 	end
