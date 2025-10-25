@@ -10,9 +10,10 @@ opt async_lib = "require(game:GetService('ReplicatedStorage').Packages.Promise)"
 type listArgument = unknown
 
 type effectArguments = enum "Effect" {
-    Test {
+    Template {
         value: struct {
             Position: vector,
+            Radius: u16(..20000)
         }
     },
 
