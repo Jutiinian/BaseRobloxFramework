@@ -14,3 +14,9 @@ A framework I'm slowly building on to perfection (in my opinion).
     - Usually has a server version and sometimes client for syncing
     - Has public API functions other scripts can call
     - Stays independent from each other mostly
+
+## Terminal Commands
+- sh scripts/process-tree.sh
+- sh scripts/process-remotes.sh
+- wally install
+- wally-package-types --sourcemap sourcemap.json Packages/
