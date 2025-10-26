@@ -136,6 +136,12 @@ if not RunService:IsRunning() then
 		DataUpdate = table.freeze({
 			SetCallback = noop
 		}),
+		ArrayRemove = table.freeze({
+			SetCallback = noop
+		}),
+		ArrayInsert = table.freeze({
+			SetCallback = noop
+		}),
 	}) :: Events
 end
 if RunService:IsServer() then
@@ -146,6 +152,7 @@ local remotes = ReplicatedStorage:WaitForChild("ZAP")
 local reliable = remotes:WaitForChild("DataService_RELIABLE")
 assert(reliable:IsA("RemoteEvent"), "Expected DataService_RELIABLE to be a RemoteEvent")
 
+export type Value = (((number) | (boolean) | (string) | ((unknown)))?)
 export type indexPath = ({
 	["Type"]: "String",
 	["value"]: (string),
@@ -153,7 +160,6 @@ export type indexPath = ({
 	["Type"]: "Table",
 	["value"]: ({ (string) }),
 })
-export type Value = (((number) | (boolean) | (string) | ((unknown)))?)
 
 local function SendEvents()
 	if outgoing_used ~= 0 then
@@ -171,10 +177,12 @@ end
 
 RunService.Heartbeat:Connect(SendEvents)
 
-local reliable_events = table.create(2)
-local reliable_event_queue: { [number]: { any } } = table.create(2)
+local reliable_events = table.create(4)
+local reliable_event_queue: { [number]: { any } } = table.create(4)
 reliable_event_queue[0] = {}
 reliable_event_queue[1] = {}
+reliable_event_queue[3] = {}
+reliable_event_queue[2] = {}
 reliable.OnClientEvent:Connect(function(buff, inst)
 	incoming_buff = buff
 	incoming_inst = inst
@@ -263,6 +271,90 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 					warn(`[ZAP] {#reliable_event_queue[1]} events in queue for DataUpdate. Did you forget to attach a listener?`)
 				end
 			end
+		elseif id == 3 then
+			local value
+			local bool_4 = buffer.readu8(incoming_buff, read(1))
+			value = {  }
+			if bit32.btest(bool_4, 0b0000000000000001) then
+				value["Key"] = { ["Type"] = "String" }
+				local len_7 = buffer.readu16(incoming_buff, read(2))
+				value["Key"]["value"] = buffer.readstring(incoming_buff, read(len_7), len_7)
+				assert(utf8.len(value["Key"]["value"]) ~= nil, "value is not valid utf-8")
+			else
+				value["Key"] = { ["Type"] = "Table" }
+				local len_8 = buffer.readu16(incoming_buff, read(2))
+				value["Key"]["value"] = table.create(len_8)
+				for i_2 = 1, len_8 do
+					local val_3
+					local len_9 = buffer.readu16(incoming_buff, read(2))
+					val_3 = buffer.readstring(incoming_buff, read(len_9), len_9)
+					assert(utf8.len(val_3) ~= nil, "value is not valid utf-8")
+					value["Key"]["value"][i_2] = val_3
+				end
+			end
+			if bit32.btest(bool_4, 0b0000000000000010) then
+				value["Index"] = buffer.readu16(incoming_buff, read(2))
+				assert(value["Index"] <= 20000, "value is more than 20000!")
+			else
+				value["Index"] = nil
+			end
+			if reliable_events[3] then
+				task.spawn(reliable_events[3], value)
+			else
+				table.insert(reliable_event_queue[3], value)
+				if #reliable_event_queue[3] > 64 then
+					warn(`[ZAP] {#reliable_event_queue[3]} events in queue for ArrayRemove. Did you forget to attach a listener?`)
+				end
+			end
+		elseif id == 2 then
+			local value
+			local bool_5 = buffer.readu8(incoming_buff, read(1))
+			value = {  }
+			if bit32.btest(bool_5, 0b0000000000000001) then
+				value["Key"] = { ["Type"] = "String" }
+				local len_10 = buffer.readu16(incoming_buff, read(2))
+				value["Key"]["value"] = buffer.readstring(incoming_buff, read(len_10), len_10)
+				assert(utf8.len(value["Key"]["value"]) ~= nil, "value is not valid utf-8")
+			else
+				value["Key"] = { ["Type"] = "Table" }
+				local len_11 = buffer.readu16(incoming_buff, read(2))
+				value["Key"]["value"] = table.create(len_11)
+				for i_3 = 1, len_11 do
+					local val_4
+					local len_12 = buffer.readu16(incoming_buff, read(2))
+					val_4 = buffer.readstring(incoming_buff, read(len_12), len_12)
+					assert(utf8.len(val_4) ~= nil, "value is not valid utf-8")
+					value["Key"]["value"][i_3] = val_4
+				end
+			end
+			if bit32.btest(bool_5, 0b0000000000000010) then
+				value["Value"] = buffer.readf64(incoming_buff, read(8))
+			elseif bit32.btest(bool_5, 0b0000000000000100) then
+				value["Value"] = bit32.btest(bool_5, 0b0000000001000000)
+			elseif bit32.btest(bool_5, 0b0000000000001000) then
+				local len_13 = buffer.readu16(incoming_buff, read(2))
+				value["Value"] = buffer.readstring(incoming_buff, read(len_13), len_13)
+				assert(utf8.len(value["Value"]) ~= nil, "value is not valid utf-8")
+			elseif bit32.btest(bool_5, 0b0000000000010000) then
+				incoming_ipos = incoming_ipos + 1
+				value["Value"] = incoming_inst[incoming_ipos]
+			elseif bit32.btest(bool_5, 0b0000000000100000) then
+				value["Value"] = nil
+			end
+			if bit32.btest(bool_5, 0b0000000010000000) then
+				value["Index"] = buffer.readu16(incoming_buff, read(2))
+				assert(value["Index"] <= 20000, "value is more than 20000!")
+			else
+				value["Index"] = nil
+			end
+			if reliable_events[2] then
+				task.spawn(reliable_events[2], value)
+			else
+				table.insert(reliable_event_queue[2], value)
+				if #reliable_event_queue[2] > 64 then
+					warn(`[ZAP] {#reliable_event_queue[2]} events in queue for ArrayInsert. Did you forget to attach a listener?`)
+				end
+			end
 		else
 			error("Unknown event id")
 		end
@@ -303,6 +395,49 @@ local returns = {
 			reliable_event_queue[1] = {}
 			return function()
 				reliable_events[1] = nil
+			end
+		end,
+	},
+	ArrayRemove = {
+		SetCallback = function(Callback: (Value: ({
+			["Key"]: ({
+				["Type"]: "String",
+				["value"]: (string),
+			} | {
+				["Type"]: "Table",
+				["value"]: ({ (string) }),
+			}),
+			["Index"]: ((number)?),
+		})) -> ()): () -> ()
+			reliable_events[3] = Callback
+			for _, value in reliable_event_queue[3] do
+				task.spawn(Callback, value)
+			end
+			reliable_event_queue[3] = {}
+			return function()
+				reliable_events[3] = nil
+			end
+		end,
+	},
+	ArrayInsert = {
+		SetCallback = function(Callback: (Value: ({
+			["Key"]: ({
+				["Type"]: "String",
+				["value"]: (string),
+			} | {
+				["Type"]: "Table",
+				["value"]: ({ (string) }),
+			}),
+			["Value"]: (((number) | (boolean) | (string) | ((unknown)))?),
+			["Index"]: ((number)?),
+		})) -> ()): () -> ()
+			reliable_events[2] = Callback
+			for _, value in reliable_event_queue[2] do
+				task.spawn(Callback, value)
+			end
+			reliable_event_queue[2] = {}
+			return function()
+				reliable_events[2] = nil
 			end
 		end,
 	},
