@@ -146,7 +146,6 @@ local remotes = ReplicatedStorage:WaitForChild("ZAP")
 local reliable = remotes:WaitForChild("DataService_RELIABLE")
 assert(reliable:IsA("RemoteEvent"), "Expected DataService_RELIABLE to be a RemoteEvent")
 
-export type Value = (((number) | (boolean) | (string) | ((unknown)))?)
 export type indexPath = ({
 	["Type"]: "String",
 	["value"]: (string),
@@ -154,6 +153,7 @@ export type indexPath = ({
 	["Type"]: "Table",
 	["value"]: ({ (string) }),
 })
+export type Value = (((number) | (boolean) | (string) | ((unknown)))?)
 
 local function SendEvents()
 	if outgoing_used ~= 0 then
