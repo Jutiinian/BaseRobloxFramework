@@ -14,6 +14,10 @@ local EffectsServiceServer = {
 
 export type EffectsServiceServer = typeof(EffectsServiceServer)
 
+--[[
+	Start EffectService on the server
+	- Loads the EffectService network on the server
+]]
 function EffectsServiceServer.Init(self: EffectsServiceServer): ()
 	self._network = require(ServerScriptService.ServerNetwork.EffectsService)
 end
