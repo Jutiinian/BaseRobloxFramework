@@ -118,13 +118,16 @@ function SoundServiceClient.Init(self: SoundServiceClient)
 
 	self._network = require(ReplicatedStorage.Shared.ClientNetwork.SoundService)
 
-	self._network.ReplicateSound.SetCallback(function(data)
+	local function Callback(data)
 		if data.Position ~= nil then
 			self:PlaySoundAt(data.SoundName, data.Position, data.Properties)
 		else
 			self:PlaySound(data.SoundName, data.Properties)
 		end
-	end)
+	end
+
+	self._network.ReplicateSoundReliable.SetCallback(Callback)
+	self._network.ReplicateSoundUnreliable.SetCallback(Callback)
 end
 
 --[[

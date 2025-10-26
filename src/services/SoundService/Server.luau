@@ -3,10 +3,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 -- || Dependencies || --
+local GetPlayersInRange = require(ReplicatedStorage.Shared.Utils.GetPlayersInRange)
 local SoundEffects = require(ReplicatedStorage.Shared.Services.SoundService.SoundEffects)
 local SoundRegistry = require(ReplicatedStorage.Shared.Modules.Registries.SoundRegistry)
-
-local GetPlayersInRange = require(ReplicatedStorage.Shared.Utils.GetPlayersInRange)
 
 -- || Variables || --
 type soundProperties = {
@@ -32,6 +31,7 @@ type soundProperties = {
 
 -- || Public API || --
 type SoundServiceNetwork = typeof(require(ServerScriptService.ServerNetwork.SoundService))
+
 local SoundServiceServer = {
 	_network = nil :: SoundServiceNetwork?,
 }
@@ -39,8 +39,8 @@ local SoundServiceServer = {
 export type SoundServiceServer = typeof(SoundServiceServer)
 
 --[[
-    Start SoundService on the server
-	- Loads SoundService network on server
+	Start SoundService on the server
+	- Loads the sound network endpoints
 ]]
 function SoundServiceServer.Init(self: SoundServiceServer): ()
 	self._network = require(ServerScriptService.ServerNetwork.SoundService)
@@ -48,81 +48,161 @@ end
 
 --[[
 	Plays a sound on the specified target(s)
-	- If a single Player is given, sound is sent only to them
-	- If a list of Players is given, sound is broadcast to that list
-	- Should be used when the sound does not require positional audio
+	- Most gameplay sounds should use this (unreliable)
+	- Slight packet loss is usually fine
 ]]
-function SoundServiceServer:PlaySound(target: Player | { Player }, soundName: string, props: soundProperties?): ()
+function SoundServiceServer.PlaySound(self: SoundServiceServer, target: Player | { Player }, soundName: string, props: soundProperties?): ()
 	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
-
-	if typeof(target) == "Player" then
-		self._network.ReplicateSound.Fire(target, { SoundName = soundName, Properties = props })
-	elseif typeof(target) == "table" then
-		self._network.ReplicateSound.FireList(target, { SoundName = soundName, Properties = props })
-	else
-		warn("Target must be a Player or a list of Players")
-	end
+	self:_FireEvent("Unreliable", target, { SoundName = soundName, Properties = props })
 end
 
 --[[
-	Plays a sound for all players within a distance from the given position
-	- Good for world events like explosions, interactables, etc.
-	- Handles detecting nearby players automatically
+	Plays a sound for all players in a radius around the given position
+	- Good for footsteps, explosions, ambient interactions
+	- Unreliable by default (transient)
 ]]
 function SoundServiceServer.PlaySoundInRange(self: SoundServiceServer, position: Vector3 | CFrame, radius: number, soundName: string, props: soundProperties?): ()
 	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
 
 	local players = GetPlayersInRange(position, radius)
-	self:PlaySound(players, soundName, props)
-end
-
---[[
-	Play a sound for EVERY player in the game
-	- No position required (UI notifications, music stings, etc.)
-]]
-function SoundServiceServer:PlaySoundForAll(soundName: string, props: soundProperties?): ()
-	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
-
-	self._network.ReplicateSound.FireAll({ SoundName = soundName, Properties = props })
-end
-
---[[
-	Plays a sound at a world position, but only for the specified target(s)
-	- Good for personal-world sound replication like hit markers or interactions
-	- Position-based playback only affects how clients hear it
-]]
-function SoundServiceServer:PlaySoundAt(target: Player | { Player }, position: Vector3 | CFrame, soundName: string, props: soundProperties?): ()
-	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
-
-	if typeof(target) == "Player" then
-		self._network.ReplicateSound.Fire(target, { Position = position, SoundName = soundName, Properties = props })
-	elseif typeof(target) == "table" then
-		self._network.ReplicateSound.FireList(target, { Position = position, SoundName = soundName, Properties = props })
-	else
-		warn("Target must be a Player or a list of Players")
+	if #players > 0 then
+		self:PlaySound(players, soundName, props)
 	end
 end
 
 --[[
-	Plays a sound at a world position for all players within range
-	- Combines distance-based filtering with positional audio
-	- Best for realistic 3D world sound effects
+	Play a sound for EVERY player (unreliable)
+	- Great for global alerts, ambience, UI stings
+]]
+function SoundServiceServer.PlaySoundForAll(self: SoundServiceServer, soundName: string, props: soundProperties?): ()
+	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
+	self._network.ReplicateSoundUnreliable.FireAll({ SoundName = soundName, Properties = props })
+end
+
+--[[
+	Plays a 3D positional sound for the specified target(s)
+	- Clients will hear the sound spatially relative to position
+	- UNRELIABLE by default
+]]
+function SoundServiceServer.PlaySoundAt(self: SoundServiceServer, target: Player | { Player }, position: Vector3 | CFrame, soundName: string, props: soundProperties?): ()
+	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
+	self:_FireEvent("Unreliable", target, { Position = position, SoundName = soundName, Properties = props })
+end
+
+--[[
+	Plays a 3D sound at a position for all players in a given radius
+	- Combines distance-based filtering with spatial audio
 ]]
 function SoundServiceServer.PlaySoundAtInRange(self: SoundServiceServer, position: Vector3 | CFrame, radius: number, soundName: string, props: soundProperties?): ()
 	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
 
 	local players = GetPlayersInRange(position, radius)
-	self:PlaySoundAt(players, position, soundName, props)
+	if #players > 0 then
+		self:PlaySoundAt(players, position, soundName, props)
+	end
 end
 
 --[[
-	Play a 3D sound at a position for EVERY player
-	- Useful for loud global events (boss landing, thunder strike, etc.)
+	Play a positional sound for EVERY player in the game
+	- Useful for global cinematic audio moments
 ]]
-function SoundServiceServer:PlaySoundAtForAll(position: Vector3 | CFrame, soundName: string, props: soundProperties?): ()
+function SoundServiceServer.PlaySoundAtForAll(self: SoundServiceServer, position: Vector3 | CFrame, soundName: string, props: soundProperties?): ()
+	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
+	self._network.ReplicateSoundUnreliable.FireAll({ Position = position, SoundName = soundName, Properties = props })
+end
+
+--[[
+	Plays a sound using a reliable event
+	- Guaranteed delivery (at the cost of possible delay)
+	- Use for confirmation sounds, rewards, error messages, etc.
+	- Most sounds should use Unreliable
+]]
+function SoundServiceServer.PlaySoundReliable(self: SoundServiceServer, target: Player | { Player }, soundName: string, props: soundProperties?): ()
+	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
+	self:_FireEvent("Reliable", target, { SoundName = soundName, Properties = props })
+end
+
+--[[
+	Reliable version of PlaySoundInRange
+	- Use when the positional event is important to hear
+	- Most sounds should use Unreliable
+]]
+function SoundServiceServer.PlaySoundInRangeReliable(self: SoundServiceServer, position: Vector3 | CFrame, radius: number, soundName: string, props: soundProperties?): ()
 	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
 
-	self._network.ReplicateSound.FireAll({ Position = position, SoundName = soundName, Properties = props })
+	local players = GetPlayersInRange(position, radius)
+	if #players > 0 then
+		self:PlaySoundReliable(players, soundName, props)
+	end
+end
+
+--[[
+	Reliable version of PlaySoundForAll
+	- Ensures all players hear it (reward chimes, announcements)
+	- Most sounds should use Unreliable
+]]
+function SoundServiceServer.PlaySoundForAllReliable(self: SoundServiceServer, soundName: string, props: soundProperties?): ()
+	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
+	self._network.ReplicateSoundReliable.FireAll({ SoundName = soundName, Properties = props })
+end
+
+--[[
+	Reliable version of PlaySoundAt
+	- Recommended for impactful or rare positional events
+	- Most sounds should use Unreliable
+]]
+function SoundServiceServer.PlaySoundAtReliable(
+	self: SoundServiceServer,
+	target: Player | { Player },
+	position: Vector3 | CFrame,
+	soundName: string,
+	props: soundProperties?
+): ()
+	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
+	self:_FireEvent("Reliable", target, { Position = position, SoundName = soundName, Properties = props })
+end
+
+--[[
+	Reliable version of PlaySoundAtInRange
+	- Ensures positional world events are heard by everyone present
+	- Most sounds should use Unreliable
+]]
+function SoundServiceServer.PlaySoundAtInRangeReliable(
+	self: SoundServiceServer,
+	position: Vector3 | CFrame,
+	radius: number,
+	soundName: string,
+	props: soundProperties?
+): ()
+	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
+
+	local players = GetPlayersInRange(position, radius)
+	if #players > 0 then
+		self:PlaySoundAtReliable(players, position, soundName, props)
+	end
+end
+
+--[[
+	Reliable version of PlaySoundAtForAll
+	- Guarantees delivery of major audio events
+	- Most sounds should use Unreliable
+]]
+function SoundServiceServer.PlaySoundAtForAllReliable(self: SoundServiceServer, position: Vector3 | CFrame, soundName: string, props: soundProperties?): ()
+	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
+	self._network.ReplicateSoundReliable.FireAll({ Position = position, SoundName = soundName, Properties = props })
+end
+
+-- || Private Helpers || --
+function SoundServiceServer._FireEvent(self: SoundServiceServer, eventType: "Reliable" | "Unreliable", target: Player | { Player }, args: any): ()
+	local event = eventType == "Reliable" and self._network.ReplicateSoundReliable or self._network.ReplicateSoundUnreliable
+
+	if typeof(target) == "Player" then
+		event.Fire(target, args)
+	elseif typeof(target) == "table" then
+		event.FireList(target, args)
+	else
+		warn("Target must be a Player or a list of Players")
+	end
 end
 
 return SoundServiceServer
