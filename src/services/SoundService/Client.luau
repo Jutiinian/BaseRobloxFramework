@@ -12,7 +12,7 @@ local SoundRegistry = require(ReplicatedStorage.Shared.Modules.Registries.SoundR
 local CreateTween = require(ReplicatedStorage.Shared.Utils.CreateTween)
 local ObjectPool = require(ReplicatedStorage.Shared.Classes.ObjectPool)
 
-local SoundServiceNetwork = require(ReplicatedStorage.Shared.ClientNetwork.SoundServiceNetwork)
+local SoundServiceNetwork = require(ReplicatedStorage.Shared.ClientNetwork.SoundService)
 
 -- || Variables || --
 local partTemplate = Instance.new("Part")

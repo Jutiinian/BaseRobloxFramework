@@ -6,7 +6,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local SoundEffects = require(ReplicatedStorage.Shared.Services.SoundService.SoundEffects)
 local SoundRegistry = require(ReplicatedStorage.Shared.Modules.Registries.SoundRegistry)
 
-local SoundServiceNetwork = require(ServerScriptService.ServerNetwork.SoundServiceNetwork)
+local SoundServiceNetwork = require(ServerScriptService.ServerNetwork.SoundService)
 
 local GetPlayersInRange = require(ReplicatedStorage.Shared.Utils.GetPlayersInRange)
 
