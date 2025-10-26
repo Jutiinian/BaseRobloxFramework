@@ -1,5 +1,12 @@
 #!/bin/sh
 
+# ─────────────────────────────────────────────────────────────
+# process-tree.sh
+# Runs generateRojoTree.js then creates new sourcemap.
+# Usage:
+#   sh scripts/process-tree.sh
+# ─────────────────────────────────────────────────────────────
+
 # Exit if any command fails
 set -e
 
