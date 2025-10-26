@@ -6,8 +6,10 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local GetPlayersInRange = require(ReplicatedStorage.Shared.Utils.GetPlayersInRange)
 
 -- || Public API || --
+type EffectsServiceNetwork = typeof(require(ServerScriptService.ServerNetwork.EffectsService))
+
 local EffectsServiceServer = {
-	_network = {} :: typeof(require(ServerScriptService.ServerNetwork.EffectsService)),
+	_network = nil :: EffectsServiceNetwork?,
 }
 
 export type EffectsServiceServer = typeof(EffectsServiceServer)
