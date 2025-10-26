@@ -83,12 +83,32 @@ function DataServiceClient.GetValueChangedSignal(self: DataServiceClient, indexP
 end
 
 --[[
+	Retrieves a signal that fires whenever a item is inserted at the specified path in a player's profile
+	- indexPath examples: "Settings" or "Settings.Audio" or "Settings.Audio.Music"
+	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
+	- The signal passes the value added into the specified array
+]]
+function DataServiceClient.GetArrayInsertedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.Signal<any>
+	return self._data:GetArrayInsertedSignal(indexPath)
+end
+
+--[[
+	Retrieves a signal that fires whenever a item is removed at the specified path in a player's profile
+	- indexPath examples: "Settings" or "Settings.Audio" or "Settings.Audio.Music"
+	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
+	- The signal passes the value remove from the specified array
+]]
+function DataServiceClient.GetArrayRemovedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.Signal<any>
+	return self._data:GetArrayRemovedSignal(indexPath)
+end
+
+--[[
 	Retrieves a signal that fires whenever any index under the specified path changes.
 	- indexPath examples: "Settings" or "Settings.Audio" or "Settings.Audio.Music"
 	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
 	- Fires with two parameters: the index that changed, and its new value
 ]]
-function DataServiceClient.GetChildChangedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.Signal<string, any>
+function DataServiceClient.GetIndexChangedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.Signal<string, any>
 	return self._data:GetChildChangedSignal(indexPath)
 end
 

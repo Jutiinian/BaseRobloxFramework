@@ -159,6 +159,27 @@ function DataServiceServer.UpdateValue(self: DataServiceServer, player: Player, 
 end
 
 --[[
+	Adds a value in into an array in the player's profile data.
+	- indexPath examples: "Settings" or "Settings.Audio" or "Settings.Audio.Music"
+	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
+	- Example would use in an inventory
+]]
+function DataServiceServer.ArrayInsert(self: DataServiceServer, player: Player, indexPath: IndexPath, value: any, index: number?)
+	self._dataProfiles[player]:ArrayInsert(indexPath, value, index)
+end
+
+--[[
+	Removes provided index from an array in the player's profile data.
+	- indexPath examples: "Settings" or "Settings.Audio" or "Settings.Audio.Music"
+	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
+	- Example would use in an inventory
+	- Basically table.remove()
+]]
+function DataServiceServer.ArrayRemove(self: DataServiceServer, player: Player, indexPath: IndexPath, index: number): any
+	return self._dataProfiles[player]:ArrayRemove(indexPath, index)
+end
+
+--[[
 	Retrieves a signal that fires whenever the value at the specified path changes in a player's profile.
 	- indexPath examples: "Settings" or "Settings.Audio" or "Settings.Audio.Music"
 	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
@@ -169,12 +190,32 @@ function DataServiceServer.GetValueChangedSignal(self: DataServiceServer, player
 end
 
 --[[
+	Retrieves a signal that fires whenever a item is inserted at the specified path in a player's profile
+	- indexPath examples: "Settings" or "Settings.Audio" or "Settings.Audio.Music"
+	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
+	- The signal passes the value added into the specified array
+]]
+function DataServiceServer.GetArrayInsertedSignal(self: DataServiceServer, player: Player, indexPath: IndexPath): Signal.Signal<any>
+	return self._dataProfiles[player]:GetArrayInsertedSignal(indexPath)
+end
+
+--[[
+	Retrieves a signal that fires whenever a item is removed at the specified path in a player's profile
+	- indexPath examples: "Settings" or "Settings.Audio" or "Settings.Audio.Music"
+	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
+	- The signal passes the value remove from the specified array
+]]
+function DataServiceServer.GetArrayRemovedSignal(self: DataServiceServer, player: Player, indexPath: IndexPath): Signal.Signal<any>
+	return self._dataProfiles[player]:GetArrayRemovedSignal(indexPath)
+end
+
+--[[
 	Retrieves a signal that fires whenever any index under the specified path changes.
 	- indexPath examples: "Settings" or "Settings.Audio" or "Settings.Audio.Music"
 	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
 	- Fires with two parameters: the index that changed, and its new value
 ]]
-function DataServiceServer.GetChildChangedSignal(self: DataServiceServer, player: Player, indexPath: IndexPath): Signal.Signal<any>
+function DataServiceServer.GetIndexChangedSignal(self: DataServiceServer, player: Player, indexPath: IndexPath): Signal.Signal<any>
 	return self._dataProfiles[player]:GetChildChangedSignal(indexPath)
 end
 
