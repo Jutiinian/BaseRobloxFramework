@@ -1,5 +1,5 @@
-opt server_output = "../src/network/Server/EffectsServiceNetwork.luau"
-opt client_output = "../src/network/Client/EffectsServiceNetwork.luau"
+opt server_output = "../src/network/Server/EffectsService.luau"
+opt client_output = "../src/network/Client/EffectsService.luau"
 
 opt remote_scope = "EffectsService"
 opt casing = "PascalCase"

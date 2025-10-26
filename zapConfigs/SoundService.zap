@@ -1,5 +1,5 @@
-opt server_output = "../src/network/Server/SoundServiceNetwork.luau"
-opt client_output = "../src/network/Client/SoundServiceNetwork.luau"
+opt server_output = "../src/network/Server/SoundService.luau"
+opt client_output = "../src/network/Client/SoundService.luau"
 
 opt remote_scope = "SoundService"
 opt casing = "PascalCase"
