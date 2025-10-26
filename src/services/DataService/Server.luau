@@ -165,6 +165,15 @@ end
 	- Example would use in an inventory
 ]]
 function DataServiceServer.ArrayInsert(self: DataServiceServer, player: Player, indexPath: IndexPath, value: any, index: number?)
+	self._network.ArrayInsert.Fire(player, {
+		Key = {
+			Type = type(indexPath) == "table" and "Table" or "String",
+			value = indexPath,
+		},
+		Value = value,
+		Index = index,
+	})
+
 	self._dataProfiles[player]:ArrayInsert(indexPath, value, index)
 end
 
@@ -176,6 +185,7 @@ end
 	- Basically table.remove()
 ]]
 function DataServiceServer.ArrayRemove(self: DataServiceServer, player: Player, indexPath: IndexPath, index: number): any
+	self._network.ArrayRemove.Fire(player, { index = index })
 	return self._dataProfiles[player]:ArrayRemove(indexPath, index)
 end
 

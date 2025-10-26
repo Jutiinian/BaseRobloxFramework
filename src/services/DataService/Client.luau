@@ -40,8 +40,6 @@ function DataServiceClient.Init(self: DataServiceClient): () -> ()
 			return
 		end
 
-		print(data)
-
 		self:_InitializeData(data)
 	end)
 
@@ -54,9 +52,29 @@ function DataServiceClient.Init(self: DataServiceClient): () -> ()
 		self._data:SetValue(data.Key.value, data.Value)
 	end)
 
+	local arrayInsertDisconnector = self._network.ArrayInsert.SetCallback(function(data)
+		if not data or not data.Key then
+			return
+		end
+
+		self:WaitForData()
+		self._data:ArrayInsert(data.Key.value, data.Value, data.Index)
+	end)
+
+	local arrayRemoveDisconnector = self._network.ArrayInsert.SetCallback(function(data)
+		if not data or not data.Key then
+			return
+		end
+
+		self:WaitForData()
+		self._data:ArrayRemove(data.Key.value, data.Index)
+	end)
+
 	return function()
 		initialDisconnector()
 		updaterDisconnector()
+		arrayInsertDisconnector()
+		arrayRemoveDisconnector()
 	end
 end
 
