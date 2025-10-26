@@ -17,3 +17,5 @@ export type EffectsServiceServer = typeof(EffectsServiceServer)
 function EffectsServiceServer.Init(self: EffectsServiceServer): ()
 	self._network = require(ServerScriptService.ServerNetwork.EffectsService)
 end
+
+return EffectsServiceServer
