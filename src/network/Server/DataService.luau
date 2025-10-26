@@ -177,6 +177,7 @@ end
 Players.PlayerRemoving:Connect(function(player)
 	player_map[player] = nil
 end)
+export type Value = (((number) | (boolean) | (string) | ((unknown)))?)
 export type indexPath = ({
 	["Type"]: "String",
 	["value"]: (string),
@@ -184,7 +185,6 @@ export type indexPath = ({
 	["Type"]: "Table",
 	["value"]: ({ (string) }),
 })
-export type Value = (((number) | (boolean) | (string) | ((unknown)))?)
 
 local function SendEvents()
 	for player, outgoing in player_map do

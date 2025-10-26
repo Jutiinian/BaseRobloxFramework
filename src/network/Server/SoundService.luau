@@ -172,33 +172,15 @@ end
 Players.PlayerRemoving:Connect(function(player)
 	player_map[player] = nil
 end)
-export type Echo = ({
-	["Delay"]: ((number)?),
-	["DryLevel"]: ((number)?),
-	["Feedback"]: ((number)?),
-	["Priority"]: ((number)?),
-	["WetLevel"]: ((number)?),
-})
-export type Compressor = ({
-	["Attack"]: ((number)?),
-	["GainMakeup"]: ((number)?),
-	["Priority"]: ((number)?),
-	["Ratio"]: ((number)?),
-	["Release"]: ((number)?),
-	["Threshold"]: ((number)?),
-})
-export type position = ((vector) | (CFrame))
 export type Tremolo = ({
 	["Depth"]: ((number)?),
 	["Duty"]: ((number)?),
 	["Frequency"]: ((number)?),
 	["Priority"]: ((number)?),
 })
-export type Chorus = ({
-	["Depth"]: ((number)?),
-	["Mix"]: ((number)?),
+export type PitchShift = ({
+	["Octave"]: ((number)?),
 	["Priority"]: ((number)?),
-	["Rate"]: ((number)?),
 })
 export type Reverb = ({
 	["DecayTime"]: ((number)?),
@@ -274,25 +256,43 @@ export type soundProperties = ({
 	})?),
 	["DenyBaseProperties"]: ((boolean)?),
 })
+export type Distortion = ({
+	["Level"]: ((number)?),
+	["Priority"]: ((number)?),
+})
+export type position = ((vector) | (CFrame))
+export type Compressor = ({
+	["Attack"]: ((number)?),
+	["GainMakeup"]: ((number)?),
+	["Priority"]: ((number)?),
+	["Ratio"]: ((number)?),
+	["Release"]: ((number)?),
+	["Threshold"]: ((number)?),
+})
 export type Equalizer = ({
 	["HighGain"]: ((number)?),
 	["LowGain"]: ((number)?),
 	["MidGain"]: ((number)?),
 	["Priority"]: ((number)?),
 })
-export type Distortion = ({
-	["Level"]: ((number)?),
+export type Echo = ({
+	["Delay"]: ((number)?),
+	["DryLevel"]: ((number)?),
+	["Feedback"]: ((number)?),
 	["Priority"]: ((number)?),
+	["WetLevel"]: ((number)?),
+})
+export type Chorus = ({
+	["Depth"]: ((number)?),
+	["Mix"]: ((number)?),
+	["Priority"]: ((number)?),
+	["Rate"]: ((number)?),
 })
 export type Flange = ({
 	["Depth"]: ((number)?),
 	["Mix"]: ((number)?),
 	["Priority"]: ((number)?),
 	["Rate"]: ((number)?),
-})
-export type PitchShift = ({
-	["Octave"]: ((number)?),
-	["Priority"]: ((number)?),
 })
 
 local function SendEvents()
