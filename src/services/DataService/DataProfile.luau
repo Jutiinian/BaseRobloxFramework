@@ -5,13 +5,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Signal = require(ReplicatedStorage.Packages.Signal)
 
 -- || Variables || --
-local AUTO_CLEAN_INTERVAL = 30
 local pathCache = {} :: { [string]: { string } }
 
 local strFind = string.find
 local strSplit = string.split
 
 export type IndexPath = string | { string }
+type WeakValueTable<T> = typeof(setmetatable({} :: { [string]: T }, { __mode = "v" }))
 
 -- || Private Functions || --
 local function normalizePath(indexPath: IndexPath): { string } | string
@@ -46,10 +46,17 @@ DataProfile.__index = DataProfile
 export type DataProfile<T> = typeof(setmetatable(
 	{} :: {
 		_data: T,
-		_autoCleanThread: thread?,
 		_signals: {
-			ValueChanged: { [string]: Signal.Signal<any> },
-			ChildChanged: { [string]: Signal.Signal<string, any> },
+			ValueChanged: { [string]: Signal.Signal<any, any?> },
+			IndexChanged: { [string]: Signal.Signal<any, any?> },
+			ArrayInserted: { [string]: Signal.Signal<any> },
+			ArrayRemoved: { [string]: Signal.Signal<any> },
+		},
+		_weakSignals: {
+			ValueChanged: WeakValueTable<Signal.Signal<any, any?>>,
+			IndexChanged: WeakValueTable<Signal.Signal<any, any?>>,
+			ArrayInserted: WeakValueTable<Signal.Signal<any>>,
+			ArrayRemoved: WeakValueTable<Signal.Signal<any>>,
 		},
 	},
 	DataProfile
@@ -58,21 +65,21 @@ export type DataProfile<T> = typeof(setmetatable(
 function DataProfile.new<T>(data: T): DataProfile<T>
 	local self = {
 		_data = data,
-		_autoCleanThread = nil,
 		_signals = {
 			ValueChanged = {},
-			ChildChanged = {},
+			IndexChanged = {},
+			ArrayInserted = {},
+			ArrayRemoved = {},
+		},
+		_weakSignals = {
+			ValueChanged = setmetatable({}, { __mode = "v" }),
+			IndexChanged = setmetatable({}, { __mode = "v" }),
+			ArrayInserted = setmetatable({}, { __mode = "v" }),
+			ArrayRemoved = setmetatable({}, { __mode = "v" }),
 		},
 	}
 
 	setmetatable(self, DataProfile)
-
-	self._autoCleanThread = task.spawn(function()
-		while true do
-			task.wait(AUTO_CLEAN_INTERVAL)
-			self:_CleanSignals()
-		end
-	end)
 
 	return self
 end
@@ -124,12 +131,53 @@ function DataProfile.UpdateValue<T>(self: DataProfile<T>, indexPath: IndexPath, 
 	return newValue
 end
 
+function DataProfile.ArrayInsert<T>(self: DataProfile<T>, indexPath: IndexPath, value: any, index: number?): ()
+	local data = self:GetValue(indexPath)
+	assert(type(data) == "table", "Data at path is not a table")
+
+	if index then
+		table.insert(data, index, value)
+	else
+		table.insert(data, value)
+	end
+
+	local pathString = self:_FireChangedSignals(indexPath)
+
+	local signal = self._signals.ArrayInserted[pathString]
+	if signal then
+		signal:Fire(index or #data, value)
+	end
+end
+
+function DataProfile.ArrayRemove<T>(self: DataProfile<T>, indexPath: IndexPath, index: number): any
+	local data = self:GetValue(indexPath)
+	assert(type(data) == "table", "Data at path is not a table")
+
+	local value = table.remove(data, index)
+	local pathString = self:_firePathChangedSignals(indexPath)
+
+	local signal = self._signals.ArrayRemoved[pathString]
+	if signal then
+		signal:Fire(index, value)
+	end
+
+	return value
+end
+
 function DataProfile.GetValueChangedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<any>
 	return self:_RetrieveSignal(indexPath, "ValueChanged")
 end
 
-function DataProfile.GetChildChangedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<string, any>
+function DataProfile.GetIndexChangedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<string, any>
 	return self:_RetrieveSignal(indexPath, "ChildChanged")
+end
+
+function DataProfile.GetArrayInsertedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<any>
+	return self:_getSignal(indexPath, "ArrayInserted")
+end
+
+function DataProfile.GetArrayRemovedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<any>
+	return self:_getSignal(indexPath, "ArrayRemoved")
 end
 
 -- Signal Functions
@@ -166,42 +214,76 @@ function DataProfile._FireValueChangedSignal<T>(self: DataProfile<T>, indexPath:
 	end
 end
 
-function DataProfile._FireChildChangedSignal<T>(self: DataProfile<T>, indexPath: string, index: string | number, value: any): ()
-	local signal = self._signals.ChildChanged[indexPath]
+function DataProfile._FireIndexChangedSignal<T>(self: DataProfile<T>, indexPath: string, index: string | number, value: any): ()
+	local signal = self._signals.IndexChanged[indexPath]
 	if signal then
 		signal:Fire(index, value)
 	end
 end
 
 function DataProfile._RetrieveSignal<T>(self: DataProfile<T>, indexPath: IndexPath, signalType: string): Signal.Signal<any, any>
-	indexPath = stringifyPath(indexPath)
-	if not self._signals[signalType][indexPath] then
+	local pathString = stringifyPath(indexPath)
+
+	--[[if not self._signals[signalType][indexPath] then
 		self._signals[signalType][indexPath] = Signal.new()
 	end
 
-	return self._signals[signalType][indexPath]
-end
+	return self._signals[signalType][indexPath]]
 
-function DataProfile._CleanSignals<T>(self: DataProfile<T>): ()
-	for _, signals in self._signals do
-		for i, signal: Signal.Signal<any> in signals do
-			if #signal:GetConnections() > 0 then
-				continue
+	local weakSignals = self._weakSignals[signalType]
+	local signal = weakSignals[pathString]
+	if signal then
+		return signal
+	end
+
+	signal = Signal.new()
+	weakSignals[pathString] = signal
+	local connCreators = { Connect = signal.Connect, Once = signal.Once }
+	local connCount = 0
+	local strongSignals = self._signals[signalType]
+
+	for funcName, originalFunc in connCreators do
+		signal[funcName] = function(_, handler: (...any?) -> ())
+			local conn = originalFunc(signal, handler)
+			connCount += 1
+			strongSignals[pathString] = signal
+
+			local originalDisconnect = conn.Disconnect
+			conn.Disconnect = function()
+				if conn.Connected then
+					connCount -= 1
+					if connCount <= 0 then
+						strongSignals[pathString] = nil
+					end
+				end
+				originalDisconnect(conn)
 			end
 
-			signal:Destroy()
-			signals[i] = nil
+			conn.Destroy = conn.Disconnect
+			return conn
 		end
 	end
+
+	local originalDestroy = signal.Destroy
+	signal.Destroy = function()
+		connCount = 0
+		strongSignals[pathString] = nil
+		weakSignals[pathString] = nil
+		originalDestroy(signal)
+	end
+
+	local originalDisconnectAll = signal.DisconnectAll
+	signal.DisconnectAll = function()
+		connCount = 0
+		strongSignals[pathString] = nil
+		originalDisconnectAll(signal)
+	end
+
+	return signal
 end
 
 -- Destroy Function
 function DataProfile.Destroy<T>(self: DataProfile<T>): ()
-	if self._autoCleanThread then
-		task.cancel(self._autoCleanThread)
-		self._autoCleanThread = nil
-	end
-
 	for _, signals in self._signals do
 		for _, signal in signals do
 			signal:Destroy()
