@@ -24,7 +24,7 @@ end
 	- Great for short-lived VFX (slashes, spark hits, particles)
 	- Accepts a single Player or a list of Players
 ]]
-function EffectsServiceServer.CastEffectUnreliable(self: EffectsServiceServer, target: Player | { Player }, effectName: string, effectArgs: { [string]: any }): ()
+function EffectsServiceServer.CastEffect(self: EffectsServiceServer, target: Player | { Player }, effectName: string, effectArgs: { [string]: any }): ()
 	self:_FireEvent("Unreliable", target, effectName, effectArgs)
 end
 
@@ -34,7 +34,7 @@ end
 	- Good for explosions, impact effects, aura bursts, etc.
 	- Unreliable by default (transient visuals)
 ]]
-function EffectsServiceServer.CastEffectInRangeUnreliable(
+function EffectsServiceServer.CastEffectInRange(
 	self: EffectsServiceServer,
 	position: Vector3 | CFrame,
 	radius: number,
