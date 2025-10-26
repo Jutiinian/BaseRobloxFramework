@@ -72,7 +72,7 @@ type Tremolo = struct {
 }
 
 type soundProperties = struct {
-    Group: string.utf8?,
+    Group: string.utf8(..20)?,
 	Parent: Instance?,
 	Volume: f32(0..1)?,
 	PlaybackSpeed: f32(0..15)?,
@@ -97,13 +97,24 @@ type position = (
     | CFrame
 )
 
-event ReplicateSound = {
+event ReplicateSoundUnreliable = {
     from: Server,
-    type: Reliable,
+    type: Unreliable,
     call: SingleAsync,
     data: struct {
-        SoundName: string.utf8,
+        SoundName: string.utf8(..20),
         Position: position?,
         Properties: soundProperties?,
     }
+}
+
+event ReplicateSoundReliable = {
+	from: Server,
+	type: Reliable,
+	call: SingleAsync,
+	data: struct {
+        SoundName: string.utf8(..20),
+        Position: position?,
+        Properties: soundProperties?,
+    } 
 }
