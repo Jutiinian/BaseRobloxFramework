@@ -6,8 +6,6 @@ local packages = ReplicatedStorage.Packages
 
 local Signal = require(packages.Signal)
 
-local DataServiceNetwork = require(ReplicatedStorage.Shared.ClientNetwork.DataService)
-
 local DataProfile = require(script.Parent.DataProfile)
 
 -- || Types || --
@@ -19,7 +17,10 @@ type IndexPath = DataProfile.IndexPath
 local initializationSignal = Signal.new()
 
 -- || Public API || --
+type DataServiceNetwork = typeof(require(ReplicatedStorage.Shared.ClientNetwork.DataService))
+
 local DataServiceClient = {
+	_network = nil :: DataServiceNetwork?,
 	_data = nil :: DataProfile.DataProfile<any>?,
 }
 
@@ -27,12 +28,14 @@ export type DataServiceClient = typeof(DataServiceClient)
 
 --[[
 	Start the DataService on the client
-	- Listens for data to be sent from the server
+	- Loads DataService network on client and listens for data to be sent from the server
 	- Syncs data from server to client
 	- Returns a function that disconnects the listeners
 ]]
 function DataServiceClient.Init(self: DataServiceClient): () -> ()
-	local initialDisconnector = DataServiceNetwork.InitialDataSync.SetCallback(function(data)
+	self._network = require(ReplicatedStorage.Shared.ClientNetwork.DataService)
+
+	local initialDisconnector = self._network.InitialDataSync.SetCallback(function(data)
 		if not data then
 			return
 		end
@@ -42,7 +45,7 @@ function DataServiceClient.Init(self: DataServiceClient): () -> ()
 		self:_InitializeData(data)
 	end)
 
-	local updaterDisconnector = DataServiceNetwork.DataUpdate.SetCallback(function(data)
+	local updaterDisconnector = self._network.DataUpdate.SetCallback(function(data)
 		if not data or not data.Key then
 			return
 		end

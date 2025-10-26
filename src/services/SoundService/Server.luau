@@ -6,8 +6,6 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local SoundEffects = require(ReplicatedStorage.Shared.Services.SoundService.SoundEffects)
 local SoundRegistry = require(ReplicatedStorage.Shared.Modules.Registries.SoundRegistry)
 
-local SoundServiceNetwork = require(ServerScriptService.ServerNetwork.SoundService)
-
 local GetPlayersInRange = require(ReplicatedStorage.Shared.Utils.GetPlayersInRange)
 
 -- || Variables || --
@@ -33,14 +31,20 @@ type soundProperties = {
 }
 
 -- || Public API || --
-local SoundServiceServer = {}
+type SoundServiceNetwork = typeof(require(ServerScriptService.ServerNetwork.SoundService))
+local SoundServiceServer = {
+	_network = nil :: SoundServiceNetwork?,
+}
 
 export type SoundServiceServer = typeof(SoundServiceServer)
 
 --[[
-    Does nothing for now...
+    Start SoundService on the server
+	- Loads SoundService network on server
 ]]
-function SoundServiceServer.Init() end
+function SoundServiceServer.Init(self: SoundServiceServer): ()
+	self._network = require(ServerScriptService.ServerNetwork.SoundService)
+end
 
 --[[
 	Plays a sound on the specified target(s)
@@ -52,9 +56,9 @@ function SoundServiceServer:PlaySound(target: Player | { Player }, soundName: st
 	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
 
 	if typeof(target) == "Player" then
-		SoundServiceNetwork.ReplicateSound.Fire(target, { SoundName = soundName, Properties = props })
+		self._network.ReplicateSound.Fire(target, { SoundName = soundName, Properties = props })
 	elseif typeof(target) == "table" then
-		SoundServiceNetwork.ReplicateSound.FireList(target, { SoundName = soundName, Properties = props })
+		self._network.ReplicateSound.FireList(target, { SoundName = soundName, Properties = props })
 	else
 		warn("Target must be a Player or a list of Players")
 	end
@@ -79,7 +83,7 @@ end
 function SoundServiceServer:PlaySoundForAll(soundName: string, props: soundProperties?): ()
 	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
 
-	SoundServiceNetwork.ReplicateSound.FireAll({ SoundName = soundName, Properties = props })
+	self._network.ReplicateSound.FireAll({ SoundName = soundName, Properties = props })
 end
 
 --[[
@@ -91,9 +95,9 @@ function SoundServiceServer:PlaySoundAt(target: Player | { Player }, position: V
 	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
 
 	if typeof(target) == "Player" then
-		SoundServiceNetwork.ReplicateSound.Fire(target, { Position = position, SoundName = soundName, Properties = props })
+		self._network.ReplicateSound.Fire(target, { Position = position, SoundName = soundName, Properties = props })
 	elseif typeof(target) == "table" then
-		SoundServiceNetwork.ReplicateSound.FireList(target, { Position = position, SoundName = soundName, Properties = props })
+		self._network.ReplicateSound.FireList(target, { Position = position, SoundName = soundName, Properties = props })
 	else
 		warn("Target must be a Player or a list of Players")
 	end
@@ -118,7 +122,7 @@ end
 function SoundServiceServer:PlaySoundAtForAll(position: Vector3 | CFrame, soundName: string, props: soundProperties?): ()
 	assert(SoundRegistry[soundName], (`%s is not a valid soundName`):format(soundName))
 
-	SoundServiceNetwork.ReplicateSound.FireAll({ Position = position, SoundName = soundName, Properties = props })
+	self._network.ReplicateSound.FireAll({ Position = position, SoundName = soundName, Properties = props })
 end
 
 return SoundServiceServer

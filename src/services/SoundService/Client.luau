@@ -12,8 +12,6 @@ local SoundRegistry = require(ReplicatedStorage.Shared.Modules.Registries.SoundR
 local CreateTween = require(ReplicatedStorage.Shared.Utils.CreateTween)
 local ObjectPool = require(ReplicatedStorage.Shared.Classes.ObjectPool)
 
-local SoundServiceNetwork = require(ReplicatedStorage.Shared.ClientNetwork.SoundService)
-
 -- || Variables || --
 local partTemplate = Instance.new("Part")
 do
@@ -52,7 +50,10 @@ type soundProperties = {
 }
 
 -- || Public API || --
+type SoundServiceNetwork = typeof(require(ReplicatedStorage.Shared.ClientNetwork.SoundService))
+
 local SoundServiceClient = {
+	_network = nil :: SoundServiceNetwork?,
 	_container = nil :: Folder?,
 	_soundPool = nil :: ObjectPool.ObjectPool<Sound>?,
 	_partPool = nil :: ObjectPool.ObjectPool<typeof(partTemplate)>?,
@@ -64,7 +65,7 @@ export type SoundServiceClient = typeof(SoundServiceClient)
 
 --[[
 	Start the SoundService on the client
-	- Listens for events from the server
+	- Loads SoundService network on client and Listens for events from the server
 	- Initializes the object pools (sounds and parts)
 	- Creates all the sound groups
 ]]
@@ -115,7 +116,9 @@ function SoundServiceClient.Init(self: SoundServiceClient)
 	self._partPool = partPool
 	self._soundGroups = groupsTable
 
-	SoundServiceNetwork.ReplicateSound.SetCallback(function(data)
+	self._network = require(ReplicatedStorage.Shared.ClientNetwork.SoundService)
+
+	self._network.ReplicateSound.SetCallback(function(data)
 		if data.Position ~= nil then
 			self:PlaySoundAt(data.SoundName, data.Position, data.Properties)
 		else

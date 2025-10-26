@@ -2,13 +2,15 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- || Dependencies || --
-local EffectsServiceNetwork = require(ReplicatedStorage.Shared.ClientNetwork.EffectsService)
 
 -- || Variables || --
 local EffectsFolder = script.Parent.Effects
 
 -- || Public API || --
+type EffectsServiceNetwork = typeof(require(ReplicatedStorage.Shared.ClientNetwork.EffectsService))
+
 local EffectsServiceClient = {
+	_network = nil :: EffectsServiceNetwork?,
 	_effectModules = {} :: { [string]: any },
 }
 
@@ -17,6 +19,7 @@ export type EffectServiceClient = typeof(EffectsServiceClient)
 --[[
 	Start the EffectService on the client
 	- Loads all effect module scripts from Effects folder
+	- Loads the EffectService network on the client
 	- Registers network callbacks for both reliable and unreliable replication events
 ]]
 function EffectsServiceClient.Init(self: EffectServiceClient): ()
@@ -26,12 +29,14 @@ function EffectsServiceClient.Init(self: EffectServiceClient): ()
 		end
 	end
 
+	self._network = require(ReplicatedStorage.Shared.ClientNetwork.EffectsService)
+
 	local function Callback(data)
 		self:CastEffect(data.Effect, data.Arguments.value)
 	end
 
-	EffectsServiceNetwork.ReplicateEffectReliable.SetCallback(Callback)
-	EffectsServiceNetwork.ReplicateEffectUnreliable.SetCallback(Callback)
+	self._network.ReplicateEffectReliable.SetCallback(Callback)
+	self._network.ReplicateEffectUnreliable.SetCallback(Callback)
 end
 
 --[[

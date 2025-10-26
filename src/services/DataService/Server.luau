@@ -8,7 +8,6 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Promise = require(ReplicatedStorage.Packages.Promise)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 
-local DataServiceNetwork = require(ServerScriptService.ServerNetwork.DataService)
 local ProfileStore = require(ServerScriptService.ServerPackages.ProfileStore)
 
 local DataProfile = require(ReplicatedStorage.Shared.Services.DataService.DataProfile)
@@ -25,7 +24,10 @@ if RunService:IsStudio() then
 end
 
 -- || Public API || --
+type DataServiceNetwork = typeof(require(ServerScriptService.ServerNetwork.DataService))
+
 local DataServiceServer = {
+	_network = nil :: DataServiceNetwork?,
 	_dataProfiles = {} :: { [Player]: DataProfile.DataProfile<DataTemplate.Data> },
 	_activeProfiles = {} :: { [Player]: Profile },
 	_waitSignals = {} :: { [Player]: Signal.Signal<any> },
@@ -36,9 +38,12 @@ export type DataServiceServer = typeof(DataServiceServer)
 --[[
 	Start the DataService on the server
 	- Loads data of all players already in game
+	- Loads DataService network on server
 	- Listens for players added and removing
 ]]
 function DataServiceServer.Init(self: DataServiceServer)
+	self._network = require(ServerScriptService.ServerNetwork.DataService)
+
 	for _, player in ipairs(Players:GetPlayers()) do
 		Promise.try(function()
 			self:_PlayerAdded(player)
@@ -122,7 +127,7 @@ end
 	- indexPath can also be a table {"Settings", "Audio"}, which is "Settings.Audio"
 ]]
 function DataServiceServer.SetValue(self: DataServiceServer, player: Player, indexPath: IndexPath, value: any): ()
-	DataServiceNetwork.DataUpdate.Fire(player, {
+	self._network.DataUpdate.Fire(player, {
 		Key = {
 			Type = type(indexPath) == "table" and "Table" or "String",
 			value = indexPath,
@@ -142,7 +147,7 @@ end
 function DataServiceServer.UpdateValue(self: DataServiceServer, player: Player, indexPath: IndexPath, callback: (any) -> any): any
 	local newValue = self._dataProfiles[player]:UpdateValue(indexPath, callback)
 
-	DataServiceNetwork.DataUpdate.Fire(player, {
+	self._network.DataUpdate.Fire(player, {
 		Key = {
 			Type = type(indexPath) == "table" and "Table" or "String",
 			value = indexPath,
@@ -231,7 +236,7 @@ end
 
 function DataServiceServer._InitializePlayer(self: DataServiceServer, player: Player, data: any): ()
 	self._dataProfiles[player] = DataProfile.new(data)
-	DataServiceNetwork.InitialDataSync.Fire(player, data)
+	self._network.InitialDataSync.Fire(player, data)
 
 	local waitSignal = self._waitSignals[player]
 	if waitSignal then
