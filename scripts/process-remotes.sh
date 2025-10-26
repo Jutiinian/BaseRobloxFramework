@@ -7,7 +7,8 @@
 #   sh scripts/process-remotes.sh
 # ─────────────────────────────────────────────────────────────
 
-CONFIG_DIR = "./zapConfigs"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONFIG_DIR="$SCRIPT_DIR/../zapConfigs"
 
 if [ ! -d "$CONFIG_DIR" ]; then
   echo "❌ Error: '$CONFIG_DIR' directory not found."
@@ -23,12 +24,10 @@ for file in "$CONFIG_DIR"/*.zap; do
   fi
 
   echo "⚙️  Processing: $file"
-  zap "$file"
-
-  if [ $? -ne 0 ]; then
+  zap "$file" || {
     echo "❌ Error processing $file — stopping."
     exit 1
-  fi
+  }
 done
 
 echo "✅ All remotes successfully processed!"
