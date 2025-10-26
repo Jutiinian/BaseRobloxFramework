@@ -9,7 +9,10 @@ const BASE_PATH = path.join(__dirname, "../src");
 
 const BLACKLISTED_DIRS = [
   toPosix(path.join(BASE_PATH, "ui")),
-  toPosix(path.join(BASE_PATH, "startup")),
+  toPosix(path.join(BASE_PATH, "start")),
+  toPosix(path.join(BASE_PATH, "network")),
+  toPosix(path.join(BASE_PATH, "classes")),
+  toPosix(path.join(BASE_PATH, "shared"))
 ];
 
 // Tracks folders that are "claimed" by init.luau
@@ -52,32 +55,33 @@ function getVirtualPath(filepath) {
 }
 
 const tree = {
-  name: "genrojotree",
+  name: "BaseRobloxFramework",
   tree: {
     $className: "DataModel",
 
     ReplicatedStorage: {
       Shared: {
         $className: "Folder",
+        $path: "src/shared",
         Services: { $className: "Folder", },
-        Classes: {  $className: "Folder", },
-        Modules: { $className: "Folder", }
+        Classes: {  $path: "src/classes", },
+        Modules: { $className: "Folder", },
+        ClientNetwork: { $path: "src/network/Client", }
       },
       Packages: { $path: "Packages", },
       UI: { $path: "src/ui", },
     },
 
     ServerScriptService: {
-      Server: { $path: "src/startup/Server.server.luau", },
+      Server: { $path: "src/start/Server.server.luau", },
       Services: { $className: "Folder", },
-      Classes: { $className: "Folder", },
-      Modules: { $className: "Folder", },
-      ServerPackages: { $path: "ServerPackages", }
+      ServerPackages: { $path: "ServerPackages", },
+      ServerNetwork: { $path: "src/network/Server", }
     },
 
     StarterPlayer: {
       StarterPlayerScripts: {
-        Client: { $path: "src/startup/Client.client.luau", }
+        Client: { $path: "src/start/Client.client.luau", }
       },
     },
   }
