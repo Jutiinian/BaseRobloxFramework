@@ -6,7 +6,7 @@ local packages = ReplicatedStorage.Packages
 
 local Signal = require(packages.Signal)
 
-local DataServiceNetwork = require(ReplicatedStorage.Shared.ClientNetwork.DataServiceNetwork)
+local DataServiceNetwork = require(ReplicatedStorage.Shared.ClientNetwork.DataService)
 
 local DataProfile = require(script.Parent.DataProfile)
 

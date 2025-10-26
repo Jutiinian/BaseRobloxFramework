@@ -8,7 +8,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Promise = require(ReplicatedStorage.Packages.Promise)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 
-local DataServiceNetwork = require(ServerScriptService.ServerNetwork.DataServiceNetwork)
+local DataServiceNetwork = require(ServerScriptService.ServerNetwork.DataService)
 local ProfileStore = require(ServerScriptService.ServerPackages.ProfileStore)
 
 local DataProfile = require(ReplicatedStorage.Shared.Services.DataService.DataProfile)
