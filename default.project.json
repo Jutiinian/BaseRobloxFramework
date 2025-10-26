@@ -2,70 +2,110 @@
   "name": "BaseRobloxFramework",
   "tree": {
     "$className": "DataModel",
-
     "ReplicatedStorage": {
       "Shared": {
+        "$className": "Folder",
         "$path": "src/shared",
-
-        "Classes": {
-          "$path": "src/classes/Shared"
-        },
-
         "Services": {
-          "$path": "src/services/Shared"
+          "$className": "Folder",
+          "DataService": {
+            "$className": "Folder",
+            "DataServiceClient": {
+              "$path": "src/services/DataService/Client.luau"
+            },
+            "DataProfile": {
+              "$path": "src/services/DataService/DataProfile.luau"
+            },
+            "DataTemplate": {
+              "$path": "src/services/DataService/DataTemplate.luau"
+            }
+          },
+          "EffectsService": {
+            "$className": "Folder",
+            "EffectsServiceClient": {
+              "$path": "src/services/EffectsService/Client.luau"
+            },
+            "Effects": {
+              "$className": "Folder",
+              "Template": {
+                "$path": "src/services/EffectsService/Effects/Template.luau"
+              }
+            }
+          },
+          "InputService": {
+            "$path": "src/services/InputService"
+          },
+          "SoundService": {
+            "$className": "Folder",
+            "BaseProperties": {
+              "$path": "src/services/SoundService/BaseProperties.luau"
+            },
+            "SoundServiceClient": {
+              "$path": "src/services/SoundService/Client.luau"
+            },
+            "SoundEffects": {
+              "$path": "src/services/SoundService/SoundEffects.luau"
+            },
+            "SoundGroups": {
+              "$path": "src/services/SoundService/SoundGroups.luau"
+            }
+          }
         },
-
+        "Classes": {
+          "$path": "src/classes"
+        },
+        "Modules": {
+          "$className": "Folder"
+        },
         "ClientNetwork": {
           "$path": "src/network/Client"
         }
       },
-
-      "UI": {
-        "$path": "src/ui"
-      },
-
       "Packages": {
         "$path": "Packages"
       },
-
-      "FrameworkClient": {
-        "$path": "src/start/FrameworkClient.luau"
+      "UI": {
+        "$path": "src/ui"
       }
     },
-
     "ServerScriptService": {
-      "ServerNetwork": {
-        "$path": "src/network/Server"
+      "Server": {
+        "$path": "src/start/Server.server.luau"
       },
-
-      "Classes": {
-        "$path": "src/classes/Server"
-      },
-
       "Services": {
-        "$path": "src/services/Server"
+        "$className": "Folder",
+        "DataService": {
+          "$className": "Folder",
+          "DataServiceServer": {
+            "$path": "src/services/DataService/Server.luau"
+          }
+        },
+        "EffectsService": {
+          "$className": "Folder",
+          "EffectsServiceServer": {
+            "$path": "src/services/EffectsService/Server.luau"
+          }
+        },
+        "SoundService": {
+          "$className": "Folder",
+          "SoundServiceServer": {
+            "$path": "src/services/SoundService/Server.luau"
+          }
+        }
       },
-      
       "ServerPackages": {
         "$path": "ServerPackages"
       },
-
-      "FrameworkServer": {
-        "$path": "src/start/FrameworkServer.luau"
-      },
-
-      "ServerBootstrap": {
-        "$path": "src/start/ServerBootstrap.server.luau"
+      "ServerNetwork": {
+        "$path": "src/network/Server"
       }
     },
-
     "StarterPlayer": {
       "StarterPlayerScripts": {
-        "ClientBootstrap": {
-          "$path": "src/start/ClientBootstrap.client.luau"
+        "Client": {
+          "$path": "src/start/Client.client.luau"
         }
       }
     }
-
   }
 }
