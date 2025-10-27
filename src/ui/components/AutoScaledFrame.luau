@@ -3,7 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Packages.React)
-local useViewportSize = require(ReplicatedStorage.UI.Hooks.useViewportSize)
+local useViewportSize = require(ReplicatedStorage.UI.hooks.useViewportSize)
 
 local STUDIO_SIZE = Vector2.new(1500, 803)
 
