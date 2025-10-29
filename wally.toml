@@ -1,5 +1,5 @@
 [package]
-name = "justin/baserobloxframework"
+name = "justin/practiceproject"
 version = "0.1.0"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
@@ -11,7 +11,11 @@ Janitor = "howmanysmall/janitor@1.18.3"
 React = "jsdotlua/react@17.2.1"
 React-Roblox = "jsdotlua/react-roblox@17.2.1"
 React-Spring = "chriscerie/react-spring@2.0.0"
+React-Flow = "outofbears/react-flow@0.1.7"
 TopbarPlus = "1foreverhd/topbarplus@3.4.0"
+Sift = "csqrl/sift@0.0.11"
+Charm = "littensy/charm@0.10.0"
+React-Charm = "littensy/react-charm@0.3.0"
 
 [server-dependencies]
 ProfileStore = "lm-loleris/profilestore@1.0.3"
