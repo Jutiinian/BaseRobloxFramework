@@ -60,12 +60,12 @@ const tree = {
     $className: "DataModel",
 
     ReplicatedStorage: {
+      Assets: { $className: "Folder" },
       Shared: {
         $className: "Folder",
         $path: "src/shared",
         Services: { $className: "Folder", },
         Classes: {  $path: "src/classes", },
-        Modules: { $className: "Folder", },
         ClientNetwork: { $path: "src/network/Client", }
       },
       Packages: { $path: "Packages", },
