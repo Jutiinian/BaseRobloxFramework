@@ -3,6 +3,9 @@
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
+      "Assets": {
+        "$className": "Folder"
+      },
       "Shared": {
         "$className": "Folder",
         "$path": "src/shared",
@@ -53,9 +56,6 @@
         },
         "Classes": {
           "$path": "src/classes"
-        },
-        "Modules": {
-          "$className": "Folder"
         },
         "ClientNetwork": {
           "$path": "src/network/Client"
