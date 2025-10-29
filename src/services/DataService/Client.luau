@@ -1,5 +1,6 @@
 -- || Services || --
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 -- || Dependencies || --
 local packages = ReplicatedStorage.Packages
@@ -135,6 +136,11 @@ end
 	- Returns immediately if the data is already available.
 ]]
 function DataServiceClient.WaitForData(self: DataServiceClient): DataProfile.DataProfile<any>
+	-- This is for testing using Hoarcekat and UILabs (running in studio)
+	if not RunService:IsRunning() and not self._data then
+		self:_InitializeData(require(script.Parent.DataTemplate))
+	end
+
 	local data = self._data
 	if data then
 		return data
