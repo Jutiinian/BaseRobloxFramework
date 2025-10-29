@@ -129,20 +129,25 @@ end
     - Example: 1234567.89 → "1,234,567.89"
 ]]
 function FormatUtil.AddCommasToNumber(num: number): string
-	local str = tostring(num)
-	local sign = ""
+	local formatted = tostring(num)
 
-	if str:sub(1, 1) == "-" then
-		sign = "-"
-		str = str:sub(2)
+	local integer_part, decimal_part = formatted:match("^(%d+)(%.?%d*)$")
+
+	while true do
+		local new_integer_part, k = string.gsub(integer_part :: string, "(-?%d+)(%d%d%d)", "%1,%2")
+		if k == 0 then
+			break
+		end
+		integer_part = new_integer_part
 	end
 
-	local intPart, fracPart = str:match("^(%d+)(%.%d+)?$")
-	local revInt = (intPart :: string):reverse()
-
-	local formatted = revInt:gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
-
-	return sign .. formatted .. (fracPart or "")
+	if decimal_part then
+		return (integer_part :: string) .. decimal_part
+	else
+		return integer_part :: string
+	end
+	--[[local formatted = tostring(num):reverse():gsub("(%d%d%d)", "%1,"):reverse()
+	return formatted:gsub("^,", "")]]
 end
 
 --[[
