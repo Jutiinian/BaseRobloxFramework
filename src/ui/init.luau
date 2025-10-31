@@ -7,13 +7,18 @@ local React = require(ReplicatedStorage.Packages.React)
 local ReactRoblox = require(ReplicatedStorage.Packages:FindFirstChild("React-Roblox"))
 
 -- || Variables || --
-local handle = Instance.new("ScreenGui")
-do
-	handle.IgnoreGuiInset = true
-	handle.Parent = Players.LocalPlayer.PlayerGui
-end
 
 -- || Loader || --
-local root = ReactRoblox.createRoot(handle)
+return function()
+	local handle = Instance.new("ScreenGui")
+	do
+		handle.IgnoreGuiInset = true
+		handle.Parent = Players.LocalPlayer.PlayerGui
+	end
 
-return root
+	local root = ReactRoblox.createRoot(handle)
+
+	return function()
+		root:unmount()
+	end
+end
