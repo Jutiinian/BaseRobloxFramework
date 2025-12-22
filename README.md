@@ -6,7 +6,8 @@ A framework I'm slowly building on to perfection (in my opinion).
 - Make something I enjoy using  
 - Keep it easy to work with  
 - Make it easy to add systems/services without getting overwhelmed  
-- Keep it clean, organized, and performant  
+- Keep it clean, organized, and performant 
+- Mainly game-agnostic code
 - Avoid having to redo it like I’ve done many times before
 
 ## Some notes

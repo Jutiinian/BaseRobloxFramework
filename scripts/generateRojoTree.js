@@ -26,36 +26,85 @@ function toPascalCase(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+// function getVirtualPath(filepath) {
+//   const relativePath = path.relative(BASE_PATH, filepath);
+//   const parts = relativePath.split(path.sep);
+//   const filename = path.basename(filepath, ".luau");
+//   const isServer = filename.toLowerCase().includes("server");
+
+//   const folderName = parts.length > 1 ? toPascalCase(parts[parts.length - 2]) : "";
+//   let name;
+
+//   if (filename === "init") {
+//     name = folderName;
+//   } else if (["server", "client", "utils", "types"].includes(filename.toLowerCase())) {
+//     name = folderName + toPascalCase(filename);
+//   } else {
+//     name = filename;
+//   }
+
+//   return {
+//     isInit: filename === "init",
+//     target: isServer ? "ServerScriptService" : "ReplicatedStorage",
+//     folder: parts.slice(0, -1).map(toPascalCase),
+//     name,
+//     file: filename === "init"
+//     ? toPosix(path.join("src", ...parts.slice(0, -1)))
+//     : toPosix(path.join("src", ...parts)),
+//   };
+// }
+
 function getVirtualPath(filepath) {
   const relativePath = path.relative(BASE_PATH, filepath);
   const parts = relativePath.split(path.sep);
+
   const filename = path.basename(filepath, ".luau");
-  const isServer = filename.toLowerCase().includes("server");
+  const lowerFilename = filename.toLowerCase();
 
-  const folderName = parts.length > 1 ? toPascalCase(parts[parts.length - 2]) : "";
+  // Detect based only on folder names
+  const folderParts = parts.slice(0, -1).map(p => p.toLowerCase());
+  const folderHasServer = folderParts.some(p => p.includes("server"));
+
+  // Detect file-based routing (only if folder is NOT server-side)
+  const fileIsServer = lowerFilename.includes("server");
+
+  // Determine final target
+  let target;
+
+  if (folderHasServer) {
+    target = "ServerScriptService";
+  } else if (fileIsServer) {
+    target = "ServerScriptService";
+  } else {
+    target = "ReplicatedStorage";
+  }
+
+  const folderName =
+    parts.length > 1 ? toPascalCase(parts[parts.length - 2]) : "";
+
   let name;
-
-  if (filename === "init") {
+  if (lowerFilename === "init") {
     name = folderName;
-  } else if (["server", "client", "utils", "types"].includes(filename.toLowerCase())) {
+  } else if (["server", "client", "utils", "types"].includes(lowerFilename)) {
     name = folderName + toPascalCase(filename);
   } else {
     name = filename;
   }
 
   return {
-    isInit: filename === "init",
-    target: isServer ? "ServerScriptService" : "ReplicatedStorage",
+    isInit: lowerFilename === "init",
+    target,
     folder: parts.slice(0, -1).map(toPascalCase),
     name,
-    file: filename === "init"
-    ? toPosix(path.join("src", ...parts.slice(0, -1)))
-    : toPosix(path.join("src", ...parts)),
+    file:
+      lowerFilename === "init"
+        ? toPosix(path.join("src", ...parts.slice(0, -1)))
+        : toPosix(path.join("src", ...parts)),
   };
 }
 
 const tree = {
-  name: "BaseRobloxFramework",
+  name: "PracticeProject",
   tree: {
     $className: "DataModel",
 
