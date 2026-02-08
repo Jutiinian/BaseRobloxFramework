@@ -1,16 +1,16 @@
-# Setup Checklist
+# Setup & Team Workflow Checklist
 
 ### Environment
 
 - [ ] Make sure you can run `.sh` scripts and Node.js scripts  
-      (macOS/Linux terminal, Git Bash, WSL, etc.)
-- [ ] OPTIONALLY, you just need to be able to run Node.js scripts
+      (macOS/Linux terminal, Git Bash, WSL, etc.)  
+- [ ] OPTIONALLY, you can just run Node.js scripts using the Node wrapper.
 
 ---
 
 ### Tools
 
-- [ ] Make sure the following are installed (via Rokit, don’t install manually):  
+- [ ] Installed via Rokit (don’t install manually):  
   - rojo  
   - wally  
   - wally-package-types  
@@ -27,13 +27,13 @@
 
 ### First-time setup
 
-You can either run the `.sh` scripts **or** the Node wrapper (`run-sh.js`) — both work.
+You can run either the `.sh` scripts or the Node wrapper (`run-sh.js`).
 
 - [ ] Install packages and generate types:  
   ```
   sh scripts/install-packages.sh
   ```  
-  Or via Node:  
+  Or:  
   ```
   node scripts/run-sh.js scripts/install-packages.sh
   ```
@@ -42,9 +42,18 @@ You can either run the `.sh` scripts **or** the Node wrapper (`run-sh.js`) — b
   ```
   sh scripts/process-tree.sh
   ```  
-  Or via Node:  
+  Or:  
   ```
   node scripts/run-sh.js scripts/process-tree.sh
+  ```
+
+- [ ] Process remotes:  
+  ```
+  sh scripts/process-remotes.sh
+  ```  
+  Or:  
+  ```
+  node scripts/run-sh.js scripts/process-remotes.sh
   ```
 
 ---
@@ -61,43 +70,74 @@ You can either run the `.sh` scripts **or** the Node wrapper (`run-sh.js`) — b
 
 ### Normal workflow (after pulling changes)
 
-You can run commands either via `.sh` scripts or the Node wrapper.
+- [ ] Pull latest changes:  
+  ```
+  git pull
+  ```
 
-- [ ] Reinstall tools/packages:  
+- [ ] Reinstall/update packages if needed:  
   ```
   rokit install
   ```
 
-- [ ] Install packages:  
+- [ ] Run setup scripts (packages/tree/remotes) via `.sh` or Node wrapper:  
   ```
   sh scripts/install-packages.sh
+  sh scripts/process-tree.sh
+  sh scripts/process-remotes.sh --verbose
   ```  
   Or:  
   ```
   node scripts/run-sh.js scripts/install-packages.sh
-  ```
-
-- [ ] Generate project tree:  
-  ```
-  sh scripts/process-tree.sh
-  ```  
-  Or:  
-  ```
   node scripts/run-sh.js scripts/process-tree.sh
+  node scripts/run-sh.js scripts/process-remotes.sh --verbose
   ```
 
-- [ ] Process remotes:  
+- [ ] Start Rojo and connect Studio:  
   ```
-  sh scripts/process-remotes.sh
-  ```  
-  Or:  
-  ```
-  node scripts/run-sh.js scripts/process-remotes.sh --verbose
+  rojo serve
   ```
 
 ---
 
-### Useful commands / flags
+### Working in branches
+
+- [ ] Make a new branch for your feature:  
+  ```
+  git checkout -b feature/your-feature-name
+  ```
+
+- [ ] After making changes, run scripts again to update everything:  
+  ```
+  sh scripts/process-tree.sh
+  sh scripts/process-remotes.sh
+  ```  
+  Or Node wrapper:  
+  ```
+  node scripts/run-sh.js scripts/process-tree.sh
+  node scripts/run-sh.js scripts/process-remotes.sh
+  ```
+
+- [ ] Test in Studio, commit, and push:  
+  ```
+  git add .
+  git commit -m "Describe your changes"
+  git push origin feature/your-feature-name
+  ```
+
+- [ ] Merge with main after pulling latest changes:  
+  ```
+  git checkout main
+  git pull
+  git checkout feature/your-feature-name
+  git merge main
+  ```
+
+- [ ] Resolve conflicts if needed, rerun scripts, test, then push.
+
+---
+
+### Help / Useful flags
 
 - [ ] Show help for scripts:  
   ```
@@ -105,7 +145,7 @@ You can run commands either via `.sh` scripts or the Node wrapper.
   sh scripts/process-tree.sh --help
   sh scripts/process-remotes.sh --help
   ```  
-  Or via Node:  
+  Or Node wrapper:  
   ```
   node scripts/run-sh.js scripts/install-packages.sh --help
   node scripts/run-sh.js scripts/process-tree.sh --help
@@ -124,7 +164,7 @@ You can run commands either via `.sh` scripts or the Node wrapper.
   node scripts/run-sh.js scripts/process-remotes.sh --dry-run
   ```
 
-- [ ] Watch remotes for changes:  
+- [ ] Watch remotes:  
   ```
   sh scripts/process-remotes.sh --watch
   node scripts/run-sh.js scripts/process-remotes.sh --watch
@@ -134,6 +174,7 @@ You can run commands either via `.sh` scripts or the Node wrapper.
 
 ### Notes
 
-- The Node wrapper (`run-sh.js`) is fully optional — you can always run the `.sh` scripts directly.  
-- Any flags/arguments you pass to the `.sh` scripts also work via the Node wrapper.  
+- The Node wrapper (`run-sh.js`) is fully optional — you can run `.sh` scripts directly.  
+- Any flags/arguments you pass to `.sh` scripts also work via the Node wrapper.  
 - Always run scripts from the project root.  
+- This workflow keeps things **cross-platform** (Windows/macOS/Linux) and ensures everyone on the team is in sync.
