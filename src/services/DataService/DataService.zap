@@ -32,29 +32,19 @@ event DataUpdate = {
 	from: Server,
 	type: Reliable,
 	call: SingleAsync,
-	data: struct {
-		Key: indexPath,
-		Value: Value
-	}
+	data: (Key: indexPath, Value: Value)
 }
 
 event ArrayInsert = {
 	from: Server,
 	type: Reliable,
 	call: SingleAsync,
-	data: struct {
-		Key: indexPath,
-		Value: Value,
-		Index: u16(..20000)?
-	}
+	data: (Key: indexPath, Value: Value, Index: u16(..20000)?)
 }
 
 event ArrayRemove = {
 	from: Server,
 	type: Reliable,
 	call: SingleAsync,
-	data: struct {
-		Key: indexPath,
-		Index: u16(..20000)?
-	}
+	data: (Key: indexPath, Index: u16(..20000)?)
 }

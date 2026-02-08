@@ -2,7 +2,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- || Dependencies || --
-local Signal = require(ReplicatedStorage.Packages.Signal)
+local DataServiceTypes = require(script.Parent.DataServiceTypes)
+local Signal = require(ReplicatedStorage.Packages.signal)
 
 -- || Variables || --
 local pathCache = {} :: { [string]: { string } }
@@ -10,7 +11,8 @@ local pathCache = {} :: { [string]: { string } }
 local strFind = string.find
 local strSplit = string.split
 
-export type IndexPath = string | { string }
+type Disconnect = DataServiceTypes.Disconnect
+type IndexPath = DataServiceTypes.IndexPath
 type WeakValueTable<T> = typeof(setmetatable({} :: { [string]: T }, { __mode = "v" }))
 
 -- || Private Functions || --
@@ -47,16 +49,16 @@ export type DataProfile<T> = typeof(setmetatable(
 	{} :: {
 		_data: T,
 		_signals: {
-			ValueChanged: { [string]: Signal.Signal<any, any?> },
-			IndexChanged: { [string]: Signal.Signal<any, any?> },
-			ArrayInserted: { [string]: Signal.Signal<any> },
-			ArrayRemoved: { [string]: Signal.Signal<any> },
+			ValueChanged: { [string]: Signal.ClassicSignal<any, any?> },
+			IndexChanged: { [string]: Signal.ClassicSignal<any, any?> },
+			ArrayInserted: { [string]: Signal.ClassicSignal<any> },
+			ArrayRemoved: { [string]: Signal.ClassicSignal<any> },
 		},
 		_weakSignals: {
-			ValueChanged: WeakValueTable<Signal.Signal<any, any?>>,
-			IndexChanged: WeakValueTable<Signal.Signal<any, any?>>,
-			ArrayInserted: WeakValueTable<Signal.Signal<any>>,
-			ArrayRemoved: WeakValueTable<Signal.Signal<any>>,
+			ValueChanged: WeakValueTable<Signal.ClassicSignal<any, any?>>,
+			IndexChanged: WeakValueTable<Signal.ClassicSignal<any, any?>>,
+			ArrayInserted: WeakValueTable<Signal.ClassicSignal<number, any>>,
+			ArrayRemoved: WeakValueTable<Signal.ClassicSignal<number, any>>,
 		},
 	},
 	DataProfile
@@ -85,7 +87,7 @@ function DataProfile.new<T>(data: T): DataProfile<T>
 end
 
 -- Usable Functions
-function DataProfile.GetValue<T>(self: DataProfile<T>, indexPath: IndexPath?): T & any
+function DataProfile.Get<T>(self: DataProfile<T>, indexPath: IndexPath?): T & any
 	if indexPath == nil then
 		return self._data
 	end
@@ -104,13 +106,13 @@ function DataProfile.GetValue<T>(self: DataProfile<T>, indexPath: IndexPath?): T
 	return data
 end
 
-function DataProfile.SetValue<T>(self: DataProfile<T>, indexPath: IndexPath, value: any): ()
+function DataProfile.Set<T>(self: DataProfile<T>, indexPath: IndexPath, value: any): ()
 	local data = self._data
 	indexPath = normalizePath(indexPath)
 
 	if type(indexPath) == "string" then
 		data[indexPath] = value
-		self:_FireChangedSignals(indexPath)
+		self:_fireChangedSignals(indexPath)
 		return
 	end
 
@@ -119,20 +121,20 @@ function DataProfile.SetValue<T>(self: DataProfile<T>, indexPath: IndexPath, val
 	end
 
 	data[indexPath[#indexPath]] = value
-	self:_FireChangedSignals(indexPath)
+	self:_fireChangedSignals(indexPath)
 end
 
-function DataProfile.UpdateValue<T>(self: DataProfile<T>, indexPath: IndexPath, callback: (any) -> any): any
-	local oldValue = self:GetValue(indexPath)
+function DataProfile.Update<T>(self: DataProfile<T>, indexPath: IndexPath, callback: (any) -> any): any
+	local oldValue = self:Get(indexPath)
 	local newValue = callback(oldValue)
 
-	self:SetValue(indexPath, newValue)
+	self:Set(indexPath, newValue)
 
 	return newValue
 end
 
 function DataProfile.ArrayInsert<T>(self: DataProfile<T>, indexPath: IndexPath, value: any, index: number?): ()
-	local data = self:GetValue(indexPath)
+	local data = self:Get(indexPath)
 	assert(type(data) == "table", "Data at path is not a table")
 
 	if index then
@@ -141,7 +143,7 @@ function DataProfile.ArrayInsert<T>(self: DataProfile<T>, indexPath: IndexPath, 
 		table.insert(data, value)
 	end
 
-	local pathString = self:_FireChangedSignals(indexPath)
+	local pathString = self:_fireChangedSignals(indexPath)
 
 	local signal = self._signals.ArrayInserted[pathString]
 	if signal then
@@ -150,11 +152,11 @@ function DataProfile.ArrayInsert<T>(self: DataProfile<T>, indexPath: IndexPath, 
 end
 
 function DataProfile.ArrayRemove<T>(self: DataProfile<T>, indexPath: IndexPath, index: number): any
-	local data = self:GetValue(indexPath)
+	local data = self:Get(indexPath)
 	assert(type(data) == "table", "Data at path is not a table")
 
 	local value = table.remove(data, index)
-	local pathString = self:_firePathChangedSignals(indexPath)
+	local pathString = self:_fireChangedSignals(indexPath)
 
 	local signal = self._signals.ArrayRemoved[pathString]
 	if signal then
@@ -165,25 +167,108 @@ function DataProfile.ArrayRemove<T>(self: DataProfile<T>, indexPath: IndexPath, 
 end
 
 function DataProfile.GetValueChangedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<any>
-	return self:_RetrieveSignal(indexPath, "ValueChanged")
+	return self:_retrieveSignal(indexPath, "ValueChanged")
 end
 
 function DataProfile.GetIndexChangedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<string, any>
-	return self:_RetrieveSignal(indexPath, "ChildChanged")
+	return self:_retrieveSignal(indexPath, "ChildChanged")
 end
 
-function DataProfile.GetArrayInsertedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<any>
-	return self:_getSignal(indexPath, "ArrayInserted")
+function DataProfile.GetArrayInsertedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<number, any>
+	return self:_retrieveSignal(indexPath, "ArrayInserted")
 end
 
-function DataProfile.GetArrayRemovedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<any>
-	return self:_getSignal(indexPath, "ArrayRemoved")
+function DataProfile.GetArrayRemovedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<number, any>
+	return self:_retrieveSignal(indexPath, "ArrayRemoved")
+end
+
+function DataProfile.ObserveData<T>(self: DataProfile<T>, indexPath: IndexPath, factory: (value: any) -> Disconnect?): Disconnect
+	local cleanupFunction: (() -> ())? = nil
+
+	local function listener(value: any)
+		if cleanupFunction then
+			task.spawn(cleanupFunction)
+			cleanupFunction = nil
+		end
+
+		local clean = factory(value)
+		cleanupFunction = typeof(clean) == "function" and clean or function() end
+	end
+
+	local conn = self:GetValueChangedSignal(indexPath):Connect(listener)
+
+	task.defer(function()
+		if not conn.Connected then
+			return
+		end
+
+		listener(self:Get(indexPath))
+	end)
+
+	return function()
+		conn:Disconnect()
+
+		if cleanupFunction then
+			cleanupFunction()
+			cleanupFunction = nil
+		end
+	end
+end
+
+-- TODO: MAYBE make separate observe array function
+function DataProfile.ObserveTableData<T, K, V>(self: DataProfile<T>, indexPath: IndexPath, factory: (key: K, value: V) -> Disconnect?, monitorLastValue: boolean?): Disconnect
+	local connections: { [K]: {disconnect: Disconnect?, lastValue: V?} } = {}
+
+	local function listener(state: {[K]: V})
+		state = state or {}
+		
+		for key, data in next, connections do
+			if state[key] == nil then
+				connections[key] = nil
+				task.spawn(data.disconnect)
+			end
+		end
+
+		for key, value in next, state do
+			local data = connections[key]
+
+			if not data then
+				local clean = factory(key, value)
+				connections[key] = {
+					disconnect = typeof(clean) == "function" and clean or function() end,
+					lastValue = value
+				}
+			elseif monitorLastValue and data.lastValue ~= value then
+				data.disconnect()
+				local clean = factory(key, value)
+				connections[key] = {
+					disconnect = typeof(clean) == "function" and clean or function() end,
+					lastValue = value
+				}
+			end
+		end
+	end
+
+	local conn = self:GetValueChangedSignal(indexPath):Connect(listener)
+
+	task.defer(function()
+		if not conn.Connected then return end
+		listener(self:Get(indexPath))
+	end)
+
+	return function()
+		conn:Disconnect()
+		for _, data in next, connections do
+			data.disconnect()
+		end
+		table.clear(connections)
+	end
 end
 
 -- Signal Functions
-function DataProfile._FireChangedSignals<T>(self: DataProfile<T>, indexPath: IndexPath): string
+function DataProfile._fireChangedSignals<T>(self: DataProfile<T>, indexPath: IndexPath): string
 	if type(indexPath) == "string" then
-		self:_FireValueChangedSignal(indexPath, self:GetValue(indexPath))
+		self:_fireValueChangedSignal(indexPath, self:Get(indexPath))
 		return indexPath
 	end
 
@@ -196,67 +281,60 @@ function DataProfile._FireChangedSignals<T>(self: DataProfile<T>, indexPath: Ind
 		if i > 1 then
 			local parentPath = indexString
 			indexString ..= "."
-			self:_FireChildChangedSignal(parentPath, key, value)
+			self:_fireIndexChangedSignal(parentPath, key, value)
 		end
 
 		indexString ..= key
 
-		self:_FireValueChangedSignal(indexString, value)
+		self:_fireValueChangedSignal(indexString, value)
 	end
 
 	return indexString
 end
 
-function DataProfile._FireValueChangedSignal<T>(self: DataProfile<T>, indexPath: string, value: any): ()
+function DataProfile._fireValueChangedSignal<T>(self: DataProfile<T>, indexPath: string, value: any): ()
 	local signal = self._signals.ValueChanged[indexPath]
 	if signal then
 		signal:Fire(value)
 	end
 end
 
-function DataProfile._FireIndexChangedSignal<T>(self: DataProfile<T>, indexPath: string, index: string | number, value: any): ()
+function DataProfile._fireIndexChangedSignal<T>(self: DataProfile<T>, indexPath: string, index: string | number, value: any): ()
 	local signal = self._signals.IndexChanged[indexPath]
 	if signal then
 		signal:Fire(index, value)
 	end
 end
 
-function DataProfile._RetrieveSignal<T>(self: DataProfile<T>, indexPath: IndexPath, signalType: string): Signal.Signal<any, any>
+function DataProfile:_retrieveSignal<T>(indexPath: IndexPath, signalType: string): Signal.Signal<any, any?>
 	local pathString = stringifyPath(indexPath)
 
-	--[[if not self._signals[signalType][indexPath] then
-		self._signals[signalType][indexPath] = Signal.new()
-	end
-
-	return self._signals[signalType][indexPath]]
-
 	local weakSignals = self._weakSignals[signalType]
-	local signal = weakSignals[pathString]
-	if signal then
-		return signal
-	end
-
-	signal = Signal.new()
-	weakSignals[pathString] = signal
-	local connCreators = { Connect = signal.Connect, Once = signal.Once }
-	local connCount = 0
 	local strongSignals = self._signals[signalType]
 
-	for funcName, originalFunc in connCreators do
-		signal[funcName] = function(_, handler: (...any?) -> ())
+	if weakSignals[pathString] then
+		return weakSignals[pathString]
+	end
+	local signal = Signal.new()
+	weakSignals[pathString] = signal
+
+	local activeConnCount = 0
+
+	local function wrapConnect(originalFunc)
+		return function(_, handler: (...any?) -> ())
 			local conn = originalFunc(signal, handler)
-			connCount += 1
+			activeConnCount += 1
 			strongSignals[pathString] = signal
 
-			local originalDisconnect = conn.Disconnect
+			local origDisconnect = conn.Disconnect
 			conn.Disconnect = function()
 				if conn.Connected then
-					connCount -= 1
-					if connCount <= 0 then
+					activeConnCount -= 1
+					if activeConnCount <= 0 then
 						strongSignals[pathString] = nil
 					end
 				end
-				originalDisconnect(conn)
+				origDisconnect(conn)
 			end
 
 			conn.Destroy = conn.Disconnect
@@ -264,19 +342,22 @@ function DataProfile._RetrieveSignal<T>(self: DataProfile<T>, indexPath: IndexPa
 		end
 	end
 
-	local originalDestroy = signal.Destroy
+	signal.Connect = wrapConnect(signal.Connect)
+	signal.Once = wrapConnect(signal.Once)
+
+	local origDestroy = signal.Destroy
 	signal.Destroy = function()
-		connCount = 0
+		activeConnCount = 0
 		strongSignals[pathString] = nil
 		weakSignals[pathString] = nil
-		originalDestroy(signal)
+		origDestroy(signal)
 	end
 
-	local originalDisconnectAll = signal.DisconnectAll
+	local origDisconnectAll = signal.DisconnectAll
 	signal.DisconnectAll = function()
-		connCount = 0
+		activeConnCount = 0
 		strongSignals[pathString] = nil
-		originalDisconnectAll(signal)
+		origDisconnectAll(signal)
 	end
 
 	return signal
