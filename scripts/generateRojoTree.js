@@ -1,22 +1,15 @@
 #!/usr/bin/env node
 
-// Run using node scripts/generateRojoTree.js
-
 const fs = require("fs");
 const path = require("path");
 
 const BASE_PATH = path.join(__dirname, "../src");
 
 const BLACKLISTED_DIRS = [
+  toPosix(path.join(BASE_PATH, "startup")),
+  toPosix(path.join(BASE_PATH, "shared")),
   toPosix(path.join(BASE_PATH, "ui")),
-  toPosix(path.join(BASE_PATH, "start")),
-  toPosix(path.join(BASE_PATH, "network")),
-  toPosix(path.join(BASE_PATH, "classes")),
-  toPosix(path.join(BASE_PATH, "shared"))
 ];
-
-// Tracks folders that are "claimed" by init.luau
-const initClaimedFolders = new Set();
 
 function toPosix(p) {
   return p.split(path.sep).join("/");
@@ -26,80 +19,124 @@ function toPascalCase(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-// function getVirtualPath(filepath) {
-//   const relativePath = path.relative(BASE_PATH, filepath);
-//   const parts = relativePath.split(path.sep);
-//   const filename = path.basename(filepath, ".luau");
-//   const isServer = filename.toLowerCase().includes("server");
-
-//   const folderName = parts.length > 1 ? toPascalCase(parts[parts.length - 2]) : "";
-//   let name;
-
-//   if (filename === "init") {
-//     name = folderName;
-//   } else if (["server", "client", "utils", "types"].includes(filename.toLowerCase())) {
-//     name = folderName + toPascalCase(filename);
-//   } else {
-//     name = filename;
-//   }
-
-//   return {
-//     isInit: filename === "init",
-//     target: isServer ? "ServerScriptService" : "ReplicatedStorage",
-//     folder: parts.slice(0, -1).map(toPascalCase),
-//     name,
-//     file: filename === "init"
-//     ? toPosix(path.join("src", ...parts.slice(0, -1)))
-//     : toPosix(path.join("src", ...parts)),
-//   };
-// }
-
+/**
+ * Determines routing for a file based on the new structure
+ * @param {string} filepath - Full path to the file
+ * @returns {Object} Routing information
+ */
 function getVirtualPath(filepath) {
   const relativePath = path.relative(BASE_PATH, filepath);
   const parts = relativePath.split(path.sep);
-
   const filename = path.basename(filepath, ".luau");
   const lowerFilename = filename.toLowerCase();
 
-  // Detect based only on folder names
-  const folderParts = parts.slice(0, -1).map(p => p.toLowerCase());
-  const folderHasServer = folderParts.some(p => p.includes("server"));
+  // Check if this is in features/ or Services/
+  const isFeature = parts[0] === "features";
+  const isService = parts[0] === "Services";
 
-  // Detect file-based routing (only if folder is NOT server-side)
-  const fileIsServer = lowerFilename.includes("server");
+  if (isFeature || isService) {
+    const moduleType = parts[0]; // "features" or "Services"
+    const moduleName = parts[1]; // e.g., "Example" or "ExampleService"
+    const subFolder = parts[2]; // e.g., "server", "shared", "network", "ui", or undefined
 
-  // Determine final target
-  let target;
+    let target = "ReplicatedStorage";
+    let destinationFolder = moduleType === "features" ? "Features" : "Services";
+    let name = filename;
 
-  if (folderHasServer) {
-    target = "ServerScriptService";
-  } else if (fileIsServer) {
-    target = "ServerScriptService";
-  } else {
-    target = "ReplicatedStorage";
+    // Handle network folder specially
+    if (subFolder === "network") {
+      const networkFile = parts[3]; // "Server.luau" or "Client.luau"
+      const isServerNetwork = networkFile === "Server.luau";
+      
+      target = isServerNetwork ? "ServerScriptService" : "ReplicatedStorage";
+      name = isServerNetwork ? "NetworkServer" : "NetworkClient";
+      
+      return {
+        target,
+        folder: [destinationFolder, moduleName],
+        name,
+        file: toPosix(filepath.replace(BASE_PATH + path.sep, "src" + path.sep)),
+        moduleType,
+        moduleName,
+      };
+    }
+
+    // Handle server folder - everything goes to ServerScriptService
+    if (subFolder === "server") {
+      target = "ServerScriptService";
+      
+      // If it's init.luau in a subdirectory, use folder name
+      if (lowerFilename === "init") {
+        const parentFolder = parts[parts.length - 2];
+        name = toPascalCase(parentFolder);
+      }
+      
+      return {
+        target,
+        folder: [destinationFolder, moduleName],
+        name,
+        file: toPosix(filepath.replace(BASE_PATH + path.sep, "src" + path.sep)),
+        moduleType,
+        moduleName,
+      };
+    }
+
+    // Handle shared folder - everything goes to ReplicatedStorage
+    if (subFolder === "shared") {
+      target = "ReplicatedStorage";
+      
+      // If it's init.luau in a subdirectory, use folder name
+      if (lowerFilename === "init") {
+        const parentFolder = parts[parts.length - 2];
+        name = toPascalCase(parentFolder);
+      }
+      
+      return {
+        target,
+        folder: [destinationFolder, moduleName],
+        name,
+        file: toPosix(filepath.replace(BASE_PATH + path.sep, "src" + path.sep)),
+        moduleType,
+        moduleName,
+      };
+    }
+
+    // Handle ui folder - goes to ReplicatedStorage
+    if (subFolder === "ui") {
+      target = "ReplicatedStorage";
+      
+      return {
+        target,
+        folder: [destinationFolder, moduleName, "UI"],
+        name,
+        file: toPosix(filepath.replace(BASE_PATH + path.sep, "src" + path.sep)),
+        moduleType,
+        moduleName,
+      };
+    }
+
+    // Handle root-level files in the module (e.g., ExampleServer.luau, ExampleClient.luau)
+    if (parts.length === 3) {
+      const isServerFile = lowerFilename.includes("server");
+      target = isServerFile ? "ServerScriptService" : "ReplicatedStorage";
+      
+      return {
+        target,
+        folder: [destinationFolder, moduleName],
+        name,
+        file: toPosix(filepath.replace(BASE_PATH + path.sep, "src" + path.sep)),
+        moduleType,
+        moduleName,
+      };
+    }
   }
 
-  const folderName =
-    parts.length > 1 ? toPascalCase(parts[parts.length - 2]) : "";
-
-  let name;
-  if (lowerFilename === "init") {
-    name = folderName;
-  } else if (["server", "client", "utils", "types"].includes(lowerFilename)) {
-    name = folderName + toPascalCase(filename);
-  } else {
-    name = filename;
-  }
-
+  // Default fallback for other files
   return {
-    isInit: lowerFilename === "init",
-    target,
+    target: "ReplicatedStorage",
     folder: parts.slice(0, -1).map(toPascalCase),
-    name,
-    file:
-      lowerFilename === "init"
-        ? toPosix(path.join("src", ...parts.slice(0, -1)))
-        : toPosix(path.join("src", ...parts)),
+    name: filename,
+    file: toPosix(filepath.replace(BASE_PATH + path.sep, "src" + path.sep)),
   };
 }
 
@@ -109,35 +146,77 @@ const tree = {
     $className: "DataModel",
 
     ReplicatedStorage: {
-      Assets: { $className: "Folder" },
+      $className: "ReplicatedStorage",
+      
+      Features: {
+        $className: "Folder",
+      },
+      
+      Services: {
+        $className: "Folder",
+      },
+      
       Shared: {
         $className: "Folder",
         $path: "src/shared",
-        Services: { $className: "Folder", },
-        Classes: {  $path: "src/classes", },
-        ClientNetwork: { $path: "src/network/Client", }
       },
-      Packages: { $path: "Packages", },
-      UI: { $path: "src/ui", },
+      
+      UI: {
+        $className: "Folder",
+        $path: "src/ui",
+      },
+      
+      Packages: {
+        $path: "Packages",
+      },
     },
 
     ServerScriptService: {
-      Server: { $path: "src/start/Server.server.luau", },
-      Services: { $className: "Folder", },
-      ServerPackages: { $path: "ServerPackages", },
-      ServerNetwork: { $path: "src/network/Server", }
+      $className: "ServerScriptService",
+      
+      Features: {
+        $className: "Folder",
+      },
+      
+      Services: {
+        $className: "Folder",
+      },
+      
+      ServerStartup: {
+        $path: "src/startup/Server.server.luau",
+      },
+      
+      ServerPackages: {
+        $path: "ServerPackages",
+      },
     },
 
     StarterPlayer: {
+      $className: "StarterPlayer",
+      
       StarterPlayerScripts: {
-        Client: { $path: "src/start/Client.client.luau", }
+        $className: "StarterPlayerScripts",
+        
+        ClientStartup: {
+          $path: "src/startup/Client.client.luau",
+        },
       },
     },
-  }
+
+    StarterGui: {
+      $className: "StarterGui",
+      
+      UIStartup: {
+        $path: "src/startup/UI.client.luau",
+      },
+    },
+  },
 };
 
-const sharedRoot = tree.tree.ReplicatedStorage.Shared;
-const serverRoot = tree.tree.ServerScriptService;
+const replicatedFeatures = tree.tree.ReplicatedStorage.Features;
+const replicatedServices = tree.tree.ReplicatedStorage.Services;
+const serverFeatures = tree.tree.ServerScriptService.Features;
+const serverServices = tree.tree.ServerScriptService.Services;
 
 // Recursively walk all files
 function walk(dir, callback) {
@@ -153,33 +232,59 @@ function walk(dir, callback) {
   });
 }
 
+// Track init.luau claimed folders to avoid duplicates
+const initClaimedFolders = new Set();
+
 walk(BASE_PATH, (filepath) => {
-  const { target, folder, name, file, isInit } = getVirtualPath(filepath);
-  const root = target === "ServerScriptService" ? serverRoot : sharedRoot;
+  const pathInfo = getVirtualPath(filepath);
+  const { target, folder, name, file, moduleName } = pathInfo;
 
-  const fullFolderKey = folder.join("/");
-
-  // If it's init.luau, promote the parent folder
-  if (isInit) {
-    const parent = folder.slice(0, -1).reduce((acc, part) => {
-      if (!acc[part]) acc[part] = { $className: "Folder" };
-      return acc[part];
-    }, root);
-
-    parent[name] = { $path: file };
-    initClaimedFolders.add(fullFolderKey);
-    return;
+  // Determine root based on target and folder type
+  let root;
+  if (target === "ServerScriptService") {
+    root = folder[0] === "Features" ? serverFeatures : serverServices;
+  } else {
+    root = folder[0] === "Features" ? replicatedFeatures : replicatedServices;
   }
 
-  // If folder was claimed by init.luau, skip assigning children
-  if (initClaimedFolders.has(fullFolderKey)) return;
-
+  // Navigate to the correct nested location
   let current = root;
-  for (const part of folder) {
-    if (!current[part]) current[part] = { $className: "Folder" };
+  for (let i = 1; i < folder.length; i++) {
+    const part = folder[i];
+    if (!current[part]) {
+      current[part] = { $className: "Folder" };
+    }
     current = current[part];
   }
 
+  // Handle init.luau files - they represent their parent folder
+  const filename = path.basename(filepath, ".luau");
+  if (filename.toLowerCase() === "init") {
+    const folderKey = folder.join("/");
+    
+    // Mark this folder as claimed
+    initClaimedFolders.add(folderKey);
+    
+    // Set the folder to point to the directory containing init.luau
+    const dirPath = toPosix(path.dirname(filepath).replace(BASE_PATH + path.sep, "src" + path.sep));
+    
+    // Get parent and set the module folder to the path
+    const parentFolder = folder[folder.length - 1];
+    const parent = folder.slice(0, -1).reduce((acc, part) => {
+      if (part === "Features" || part === "Services") return acc;
+      if (!acc[part]) acc[part] = { $className: "Folder" };
+      return acc[part];
+    }, root);
+    
+    parent[parentFolder] = { $path: dirPath };
+    return;
+  }
+
+  // Check if parent folder was claimed by init.luau
+  const folderKey = folder.join("/");
+  if (initClaimedFolders.has(folderKey)) return;
+
+  // Add the file
   current[name] = { $path: file };
 });
 

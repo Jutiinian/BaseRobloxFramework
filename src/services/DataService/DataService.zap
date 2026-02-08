@@ -1,5 +1,5 @@
-opt server_output = "../src/network/Server/DataService.luau"
-opt client_output = "../src/network/Client/DataService.luau"
+opt server_output = "./network/Server.luau"
+opt client_output = "./network/Client.luau"
 
 opt remote_scope = "DataService"
 opt casing = "PascalCase"

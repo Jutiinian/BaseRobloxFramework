@@ -6,4 +6,9 @@
     "[luau]": {
         "editor.defaultFormatter": "JohnnyMorganz.stylua"
     },
+
+    "files.associations": {
+        "*.lua": "lua",
+        "*.luau": "luau",
+    },
 }

@@ -6,14 +6,19 @@ realm = "shared"
 
 [dependencies]
 Promise = "howmanysmall/typed-promise@4.0.6"
-Signal = "sleitnick/signal@2.0.3"
 Janitor = "howmanysmall/janitor@1.18.3"
+
+Signal = "sleitnick/signal@2.0.3"
+
 React = "jsdotlua/react@17.2.1"
 React-Roblox = "jsdotlua/react-roblox@17.2.1"
 React-Spring = "chriscerie/react-spring@2.0.0"
 React-Flow = "outofbears/react-flow@0.2.0"
+
 TopbarPlus = "1foreverhd/topbarplus@3.4.0"
+
 Sift = "csqrl/sift@0.0.11"
+
 Charm = "littensy/charm@0.10.0"
 React-Charm = "littensy/react-charm@0.3.0"
 
