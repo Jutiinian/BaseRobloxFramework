@@ -21,5 +21,7 @@ sift = "csqrl/sift@0.0.11"
 charm = "littensy/charm@0.10.0"
 react-cham = "littensy/react-charm@0.3.0"
 
+observers = "sleitnick/observers@^0.4.0"
+
 [server-dependencies]
 profilestore = "lm-loleris/profilestore@1.0.3"
