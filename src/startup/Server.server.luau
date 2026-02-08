@@ -1,12 +1,8 @@
 -- || Services || --
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 -- || Dependencies || --
-local Framework = require(ReplicatedStorage.Shared.Framework)
+local DataServiceServer = require(ServerScriptService.Services.DataService.DataServiceServer)
 
 -- || Initializer || --
-Framework.Start()
-	:andThen(function()
-		print("(Server) Framework Started!")
-	end)
-	:catch(warn)
+DataServiceServer:Init({})
