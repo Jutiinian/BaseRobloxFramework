@@ -15,7 +15,7 @@ type IndexPath = DataServiceTypes.IndexPath
 local initializationSignal = Signal.new()
 
 -- || Public API || --
-type DataServiceNetwork = typeof(script.Parent.NetworkClient)
+type DataServiceNetwork = typeof(require(script.Parent.NetworkClient))
 
 local DataServiceClient = {
 	_network = nil :: DataServiceNetwork?,
@@ -30,7 +30,7 @@ export type DataServiceClient = typeof(DataServiceClient)
 	- Syncs data from server to client
 	- Returns a function that disconnects the listeners
 ]]
-function DataServiceClient.init(self: DataServiceClient)
+function DataServiceClient.Init(self: DataServiceClient)
 	self._network = require(script.Parent.NetworkClient)
 
 	self._network.InitialDataSync.SetCallback(function(data)
