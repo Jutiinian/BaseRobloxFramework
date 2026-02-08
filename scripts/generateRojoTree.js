@@ -30,12 +30,12 @@ function getVirtualPath(filepath) {
   const filename = path.basename(filepath, ".luau");
   const lowerFilename = filename.toLowerCase();
 
-  // Check if this is in features/ or Services/
+  // Check if this is in features/ or services/
   const isFeature = parts[0] === "features";
-  const isService = parts[0] === "Services";
+  const isService = parts[0] === "services";
 
   if (isFeature || isService) {
-    const moduleType = parts[0]; // "features" or "Services"
+    const moduleType = parts[0]; // "features" or "services"
     const moduleName = parts[1]; // e.g., "Example" or "ExampleService"
     const subFolder = parts[2]; // e.g., "server", "shared", "network", "ui", or undefined
 
