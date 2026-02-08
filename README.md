@@ -2,9 +2,8 @@
 
 ### Environment
 
-- [ ] Make sure you can run `.sh` scripts and Node.js scripts  
-      (macOS/Linux terminal, Git Bash, WSL, etc.)  
-- [ ] OPTIONALLY, you can just run Node.js scripts using the Node wrapper.
+- [ ] Make sure you can run `.sh` scripts and Node.js scripts (macOS/Linux terminal, Git Bash, WSL, etc.)  
+- [ ] Optionally, you can just use the Node wrapper (`run-sh.js`) instead of `.sh` scripts.
 
 ---
 
@@ -15,10 +14,10 @@
   - wally  
   - wally-package-types  
 
-- [ ] Install Rokit if you haven’t already:  
+- [ ] Install Rokit if needed:  
   👉 https://github.com/rojo-rbx/rokit
 
-- [ ] From the project root:  
+- [ ] From project root:  
   ```
   rokit install
   ```
@@ -27,9 +26,9 @@
 
 ### First-time setup
 
-You can run either the `.sh` scripts or the Node wrapper (`run-sh.js`).
+Run either `.sh` scripts or Node wrapper:
 
-- [ ] Install packages and generate types:  
+- [ ] Install packages and types:  
   ```
   sh scripts/install-packages.sh
   ```  
@@ -68,6 +67,39 @@ You can run either the `.sh` scripts or the Node wrapper (`run-sh.js`).
 
 ---
 
+### Multi-Developer Workflow
+
+- [ ] Each person must work in their **own Studio `.rbxl` file**.  
+      - Do **not edit the main generated `.rbxl` directly**; Rojo will overwrite it.  
+      - Everyone edits their copy while using `rojo serve` locally.
+
+- [ ] Pull latest changes from Git before starting:  
+  ```
+  git checkout main
+  git pull
+  ```
+
+- [ ] Run setup scripts to update your local Rojo tree, remotes, and types:  
+  ```
+  sh scripts/install-packages.sh
+  sh scripts/process-tree.sh
+  sh scripts/process-remotes.sh
+  ```  
+  Or via Node wrapper.
+
+- [ ] After making changes in `src/`, commit & push your branch:  
+  ```
+  git add .
+  git commit -m "Describe your changes"
+  git push origin feature/my-feature
+  ```
+
+- [ ] Other teammates pull your changes and rerun the scripts before testing.  
+
+> Rule of thumb: Treat the `.rbxl` in Studio as temporary; `src/` is the source of truth.
+
+---
+
 ### Normal workflow (after pulling changes)
 
 - [ ] Pull latest changes:  
@@ -75,69 +107,55 @@ You can run either the `.sh` scripts or the Node wrapper (`run-sh.js`).
   git pull
   ```
 
-- [ ] Reinstall/update packages if needed:  
+- [ ] Reinstall/update packages:  
   ```
   rokit install
   ```
 
-- [ ] Run setup scripts (packages/tree/remotes) via `.sh` or Node wrapper:  
+- [ ] Run setup scripts:  
   ```
   sh scripts/install-packages.sh
   sh scripts/process-tree.sh
   sh scripts/process-remotes.sh --verbose
   ```  
-  Or:  
-  ```
-  node scripts/run-sh.js scripts/install-packages.sh
-  node scripts/run-sh.js scripts/process-tree.sh
-  node scripts/run-sh.js scripts/process-remotes.sh --verbose
-  ```
+  Or Node wrapper.
 
-- [ ] Start Rojo and connect Studio:  
-  ```
-  rojo serve
-  ```
+- [ ] Start Rojo and connect Studio
 
 ---
 
 ### Working in branches
 
-- [ ] Make a new branch for your feature:  
+- [ ] Make a new branch for each feature/bugfix:  
   ```
-  git checkout -b feature/your-feature-name
+  git checkout -b feature/my-feature
   ```
 
-- [ ] After making changes, run scripts again to update everything:  
+- [ ] Test scripts after changes:  
   ```
   sh scripts/process-tree.sh
   sh scripts/process-remotes.sh
   ```  
-  Or Node wrapper:  
-  ```
-  node scripts/run-sh.js scripts/process-tree.sh
-  node scripts/run-sh.js scripts/process-remotes.sh
-  ```
+  Or Node wrapper
 
-- [ ] Test in Studio, commit, and push:  
+- [ ] Commit & push:  
   ```
   git add .
-  git commit -m "Describe your changes"
-  git push origin feature/your-feature-name
+  git commit -m "Describe changes"
+  git push origin feature/my-feature
   ```
 
-- [ ] Merge with main after pulling latest changes:  
+- [ ] Merge with main after pulling latest:  
   ```
   git checkout main
   git pull
-  git checkout feature/your-feature-name
+  git checkout feature/my-feature
   git merge main
   ```
 
-- [ ] Resolve conflicts if needed, rerun scripts, test, then push.
-
 ---
 
-### Help / Useful flags
+### Help
 
 - [ ] Show help for scripts:  
   ```
@@ -145,36 +163,36 @@ You can run either the `.sh` scripts or the Node wrapper (`run-sh.js`).
   sh scripts/process-tree.sh --help
   sh scripts/process-remotes.sh --help
   ```  
-  Or Node wrapper:  
-  ```
-  node scripts/run-sh.js scripts/install-packages.sh --help
-  node scripts/run-sh.js scripts/process-tree.sh --help
-  node scripts/run-sh.js scripts/process-remotes.sh --help
-  ```
-
-- [ ] Clean install packages:  
-  ```
-  sh scripts/install-packages.sh --clean
-  node scripts/run-sh.js scripts/install-packages.sh --clean
-  ```
-
-- [ ] Dry run remotes:  
-  ```
-  sh scripts/process-remotes.sh --dry-run
-  node scripts/run-sh.js scripts/process-remotes.sh --dry-run
-  ```
-
-- [ ] Watch remotes:  
-  ```
-  sh scripts/process-remotes.sh --watch
-  node scripts/run-sh.js scripts/process-remotes.sh --watch
-  ```
+  Or Node wrapper
 
 ---
 
 ### Notes
 
-- The Node wrapper (`run-sh.js`) is fully optional — you can run `.sh` scripts directly.  
-- Any flags/arguments you pass to `.sh` scripts also work via the Node wrapper.  
-- Always run scripts from the project root.  
-- This workflow keeps things **cross-platform** (Windows/macOS/Linux) and ensures everyone on the team is in sync.
+- Node wrapper is optional — flags work the same as `.sh` scripts.  
+- Always run scripts from the project root.
+
+---
+
+# Git Branch Cheat Sheet
+
+### ✅ Branch for:
+- Features, bug fixes, scripts, `.zap` files, assets, project structure  
+- Example naming:  
+  ```
+  feature/<short-description>
+  bugfix/<short-description>
+  script/<short-description>
+  ```
+
+### ❌ Don’t branch for:
+- Personal configs, running scripts locally, minor README tweaks
+
+### 📝 Basic workflow:
+1. Pull latest `main`  
+2. Create branch  
+3. Make changes, test, run scripts  
+4. Commit & push  
+5. Open pull request to `main`  
+
+> Rule of thumb: If it affects the project, other teammates, or game logic — branch for it.
