@@ -10,6 +10,9 @@
           "$className": "Folder",
           "ExampleClient": {
             "$path": "src/features/Example/ExampleClient.luau"
+          },
+          "NetworkClient": {
+            "$path": "src/features/Example/network/Client.luau"
           }
         }
       },
@@ -20,29 +23,17 @@
           "DataServiceClient": {
             "$path": "src/services/DataService/DataServiceClient.luau"
           },
-          "DataServiceServer": {
-            "$path": "src/services/DataService/DataServiceServer.luau"
+          "NetworkClient": {
+            "$path": "src/services/DataService/network/Client.luau"
           },
-          "Network": {
-            "$className": "Folder",
-            "Client": {
-              "$path": "src/services/DataService/network/Client.luau"
-            },
-            "Server": {
-              "$path": "src/services/DataService/network/Server.luau"
-            }
+          "DataProfile": {
+            "$path": "src/services/DataService/shared/DataProfile.luau"
           },
-          "Shared": {
-            "$className": "Folder",
-            "DataProfile": {
-              "$path": "src/services/DataService/shared/DataProfile.luau"
-            },
-            "DataServiceTypes": {
-              "$path": "src/services/DataService/shared/DataServiceTypes.luau"
-            },
-            "DataTemplate": {
-              "$path": "src/services/DataService/shared/DataTemplate.luau"
-            }
+          "DataServiceTypes": {
+            "$path": "src/services/DataService/shared/DataServiceTypes.luau"
+          },
+          "DataTemplate": {
+            "$path": "src/services/DataService/shared/DataTemplate.luau"
           }
         }
       },
@@ -66,11 +57,23 @@
           "$className": "Folder",
           "ExampleServer": {
             "$path": "src/features/Example/ExampleServer.luau"
+          },
+          "NetworkServer": {
+            "$path": "src/features/Example/network/Server.luau"
           }
         }
       },
       "Services": {
-        "$className": "Folder"
+        "$className": "Folder",
+        "DataService": {
+          "$className": "Folder",
+          "DataServiceServer": {
+            "$path": "src/services/DataService/DataServiceServer.luau"
+          },
+          "NetworkServer": {
+            "$path": "src/services/DataService/network/Server.luau"
+          }
+        }
       },
       "ServerStartup": {
         "$path": "src/startup/Server.server.luau"
