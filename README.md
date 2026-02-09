@@ -4,6 +4,7 @@
 
 Zap: https://zap.redblox.dev
 Rokit: https://github.com/rojo-rbx/rokit
+Wally Packages: https://wally.run/
 
 ### Environment
 
