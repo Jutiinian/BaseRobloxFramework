@@ -1,7 +1,5 @@
 # 🎮 Setup & Workflow Guide
 
-![kpop-haerin-kang-BQUaRQJ0RyVmo4dWaY](https://media0.giphy.com/media/BQUaRQJ0RyVmo4dWaY/giphy.gif)
-
 ---
 
 ## 🔗 Quick Links
