@@ -1,5 +1,10 @@
 # Setup & Team Workflow Checklist
 
+### Important Links
+
+Zap: https://zap.redblox.dev
+Rokit: https://github.com/rojo-rbx/rokit
+
 ### Environment
 
 - [ ] Make sure you can run `.sh` scripts and Node.js scripts (macOS/Linux terminal, Git Bash, WSL, etc.)  
