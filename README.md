@@ -1,6 +1,6 @@
 # 🎮 Setup & Workflow Guide
 
-![a woman wearing a hat and a blue shirt gives a thumbs up](https://media.tenor.com/D0AYhhoU2y8AAAAC/haerin-newjeans.gif)
+![kpop-haerin-kang-BQUaRQJ0RyVmo4dWaY](https://media0.giphy.com/media/BQUaRQJ0RyVmo4dWaY/giphy.gif)
 
 ---
 
@@ -59,13 +59,14 @@ If you don't have Rokit yet:
 
 **1.** Go to https://github.com/rojo-rbx/rokit and follow their install instructions
 
-**2.** Once it's installed, run this from the project root:
+**2.** (OPTIONAL) Once it's installed, run this from the project root:
 
 ```bash
 rokit install
 ```
 
-That's it. Rokit will handle everything else.
+That's it. Rokit will handle everything else.\
+**Note:** `install-packages` script already runs `rokit install`
 
 ---
 
@@ -167,13 +168,7 @@ Whenever someone else pushes changes and you pull them:
 git pull
 ```
 
-### Step 2: Update packages
-
-```bash
-rokit install
-```
-
-### Step 3: Run the setup scripts
+### Step 2: Run the setup scripts
 
 ```bash
 sh scripts/install-packages.sh
@@ -181,7 +176,7 @@ sh scripts/process-tree.sh
 sh scripts/process-remotes.sh --verbose
 ```
 
-### Step 4: Start Rojo and connect Studio
+### Step 3: Start Rojo and connect Studio
 
 ```bash
 rojo serve
@@ -348,7 +343,8 @@ When in doubt, just make a branch. Better safe than sorry.
 
 ---
 
-That's pretty much it. Use `--help` on scripts if you forget commands.\
-Yes, I did use AI to help me write this cause I can't be asked to format all this. 
+That's pretty much it. Use `--help` on scripts if you forget commands.
 
-![kpop-haerin-kang-BQUaRQJ0RyVmo4dWaY](https://media0.giphy.com/media/BQUaRQJ0RyVmo4dWaY/giphy.gif)
+![a woman wearing a hat and a blue shirt gives a thumbs up](https://media.tenor.com/D0AYhhoU2y8AAAAC/haerin-newjeans.gif)
+
+YAY!
