@@ -50,6 +50,9 @@ Everything's managed by Rokit, so don't install stuff manually or you'll have ve
 - `rojo`
 - `wally`
 - `wally-package-types`
+- `stylua`
+- `selene`
+- `luau-lsp`
 
 ### Setting Up Rokit
 
