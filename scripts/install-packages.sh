@@ -66,6 +66,10 @@ command_exists() {
 # Check required dependencies
 check_dependencies() {
     local missing_deps=""
+
+    if ! command_exists rokit; then
+        missing_deps="${missing_deps}  - rokit (https://github.com/rojo-rbx/rokit)\n"
+    fi
     
     if ! command_exists wally; then
         missing_deps="${missing_deps}  - wally (https://github.com/UpliftGames/wally)\n"
@@ -87,38 +91,6 @@ check_dependencies() {
 }
 
 # Show help message
-# show_help() {
-#     cat << EOF
-# ${BOLD}install-packages.sh${RESET}
-
-# ${BOLD}DESCRIPTION${RESET}
-#     Installs Wally packages and generates type definitions for Roblox development.
-
-# ${BOLD}USAGE${RESET}
-#     sh scripts/install-packages.sh [OPTIONS]
-
-# ${BOLD}OPTIONS${RESET}
-#     --clean         Remove existing packages and sourcemap before installing
-#     --skip-types    Skip type definition generation
-#     --help, -h      Show this help message
-
-# ${BOLD}EXAMPLES${RESET}
-#     # Normal installation
-#     sh scripts/install-packages.sh
-
-#     # Clean install (remove existing packages)
-#     sh scripts/install-packages.sh --clean
-
-#     # Install without generating types
-#     sh scripts/install-packages.sh --skip-types
-
-# ${BOLD}REQUIREMENTS${RESET}
-#     - wally: https://github.com/UpliftGames/wally
-#     - rojo: https://rojo.space
-#     - wally-package-types: https://github.com/JohnnyMorganz/wally-package-types
-
-# EOF
-# }
 show_help() {
     printf "%b\n" "$(cat << EOF
 ${BOLD}install-packages.sh${RESET}
@@ -145,6 +117,7 @@ ${BOLD}EXAMPLES${RESET}
     sh scripts/install-packages.sh --skip-types
 
 ${BOLD}REQUIREMENTS${RESET}
+    - rokit
     - wally
     - rojo
     - wally-package-types
@@ -196,6 +169,16 @@ echo ""
 print_step "Checking dependencies..."
 check_dependencies
 print_success "All dependencies found"
+echo ""
+
+# Install Rokit tools
+print_step "Intalling Rokit tools..."
+if rokit install; then
+    print_success "Rokit tools installed"
+else
+    print_error "Failed to install Rokit tools"
+    exit 1
+fi
 echo ""
 
 # Clean installation if requested
