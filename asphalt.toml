@@ -1,0 +1,30 @@
+[creator]
+id = 210789335           # Your Roblox user ID or group ID
+type = "user"           # "user" or "group"
+
+[codegen]
+# Style can be "flat" (all keys in one table) or "nested" (keys nested by folder)
+style = "flat"
+typescript = false
+strip_extensions = true
+content = false
+
+# Images
+[inputs.Images]
+path = "assets/Images/**/*.{png,jpg,webp}"
+output_path = "src/shared/Assets"
+bleed = true
+
+# Animations
+[inputs.Animations]
+path = "assets/Animations/**/*.{rbxm,rbxmx}"
+output_path = "src/shared/Assets"
+bleed = false
+
+# Sounds (optional)
+[inputs.Sounds]
+path = "assets/Sounds/**/*.{mp3,wav,ogg}"
+output_path = "src/shared/Assets"
+bleed = false
+
+# export ASPHALT_API_KEY="your_key_here"
