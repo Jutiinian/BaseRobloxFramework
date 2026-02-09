@@ -1,6 +1,6 @@
 # 🎮 Setup & Workflow Guide
 
-![alt text](a-woman-wearing-a-hat-and-a-blue-shirt-gives-a-thumbs-up.gif)
+![a woman wearing a hat and a blue shirt gives a thumbs up](https://media.tenor.com/D0AYhhoU2y8AAAAC/haerin-newjeans.gif)
 
 ---
 
@@ -350,3 +350,5 @@ When in doubt, just make a branch. Better safe than sorry.
 
 That's pretty much it. Use `--help` on scripts if you forget commands.\
 Yes, I did use AI to help me write this cause I can't be asked to format all this. 
+
+![kpop-haerin-kang-BQUaRQJ0RyVmo4dWaY](https://media0.giphy.com/media/BQUaRQJ0RyVmo4dWaY/giphy.gif)
