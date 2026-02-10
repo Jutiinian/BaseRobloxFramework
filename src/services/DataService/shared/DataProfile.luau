@@ -306,61 +306,103 @@ function DataProfile._fireIndexChangedSignal<T>(self: DataProfile<T>, indexPath:
 	end
 end
 
-function DataProfile:_retrieveSignal<T>(indexPath: IndexPath, signalType: string): Signal.Signal<any, any?>
-	local pathString = stringifyPath(indexPath)
-
-	local weakSignals = self._weakSignals[signalType]
-	local strongSignals = self._signals[signalType]
-
-	if weakSignals[pathString] then
-		return weakSignals[pathString]
-	end
-	local signal = Signal.new()
-	weakSignals[pathString] = signal
-
-	local activeConnCount = 0
-
-	local function wrapConnect(originalFunc)
-		return function(_, handler: (...any?) -> ())
-			local conn = originalFunc(signal, handler)
-			activeConnCount += 1
-			strongSignals[pathString] = signal
-
-			local origDisconnect = conn.Disconnect
-			conn.Disconnect = function()
-				if conn.Connected then
-					activeConnCount -= 1
-					if activeConnCount <= 0 then
-						strongSignals[pathString] = nil
-					end
-				end
-				origDisconnect(conn)
-			end
-
-			conn.Destroy = conn.Disconnect
-			return conn
-		end
-	end
-
-	signal.Connect = wrapConnect(signal.Connect)
-	signal.Once = wrapConnect(signal.Once)
-
-	local origDestroy = signal.Destroy
-	signal.Destroy = function()
-		activeConnCount = 0
-		strongSignals[pathString] = nil
-		weakSignals[pathString] = nil
-		origDestroy(signal)
-	end
-
-	local origDisconnectAll = signal.DisconnectAll
-	signal.DisconnectAll = function()
-		activeConnCount = 0
-		strongSignals[pathString] = nil
-		origDisconnectAll(signal)
-	end
-
-	return signal
+function DataProfile._retrieveSignal<T>(self: DataProfile<T>, indexPath: IndexPath, signalType: string): Signal.Signal<any, any>
+    local pathString = stringifyPath(indexPath)
+    local weakSignals = self._weakSignals[signalType]
+    local strongSignals = self._signals[signalType]
+    
+    -- Return existing signal if found
+    local existingSignal = weakSignals[pathString]
+    if existingSignal then
+        return existingSignal
+    end
+    
+    -- Create new signal with connection tracking
+    local signal = Signal.new()
+    weakSignals[pathString] = signal
+    
+    local connectionCount = 0
+    local isDestroyed = false
+    
+    -- Helper to promote signal to strong reference
+    local function promoteToStrong()
+        if connectionCount > 0 and not isDestroyed then
+            strongSignals[pathString] = signal
+        end
+    end
+    
+    -- Helper to demote signal from strong reference
+    local function demoteFromStrong()
+        if connectionCount <= 0 then
+            strongSignals[pathString] = nil
+        end
+    end
+    
+    -- Override connection methods to track active connections
+    local originalConnect = signal.Connect
+    local originalOnce = signal.Once
+    
+    local function wrapConnectionMethod(originalMethod)
+        return function(_, handler: (...any?) -> ())
+            if isDestroyed then
+                warn("Attempting to connect to destroyed signal at path: " .. pathString)
+                return
+            end
+            
+            local connection = originalMethod(signal, handler)
+            connectionCount += 1
+            promoteToStrong()
+            
+            -- Wrap disconnect to track connection count
+            local originalDisconnect = connection.Disconnect
+            local hasDisconnected = false
+            
+            local function disconnect()
+                if hasDisconnected then
+                    return
+                end
+                
+                hasDisconnected = true
+                if connection.Connected then
+                    connectionCount -= 1
+                    demoteFromStrong()
+                end
+                originalDisconnect(connection)
+            end
+            
+            connection.Disconnect = disconnect
+            connection.Destroy = disconnect
+            
+            return connection
+        end
+    end
+    
+    signal.Connect = wrapConnectionMethod(originalConnect)
+    signal.Once = wrapConnectionMethod(originalOnce)
+    
+    -- Override DisconnectAll
+    local originalDisconnectAll = signal.DisconnectAll
+    signal.DisconnectAll = function()
+        connectionCount = 0
+        strongSignals[pathString] = nil
+        originalDisconnectAll(signal)
+    end
+    
+    -- Override Destroy
+    local originalDestroy = signal.Destroy
+    signal.Destroy = function()
+        if isDestroyed then
+            return
+        end
+        
+        isDestroyed = true
+        connectionCount = 0
+        strongSignals[pathString] = nil
+        weakSignals[pathString] = nil
+        originalDestroy(signal)
+    end
+    
+    return signal
 end
 
 -- Destroy Function
