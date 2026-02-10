@@ -6,3 +6,5 @@ quote_style = "AutoPreferDouble"
 
 [sort_requires]
 enabled = true
+
+ignore = ["src/shared/Assets"]
