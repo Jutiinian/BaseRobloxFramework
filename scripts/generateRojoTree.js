@@ -47,10 +47,10 @@ function getVirtualPath(filepath) {
     if (subFolder === "network") {
       const networkFile = parts[3]; // "Server.luau" or "Client.luau"
       const isServerNetwork = networkFile === "Server.luau";
-      
+
       target = isServerNetwork ? "ServerScriptService" : "ReplicatedStorage";
       name = isServerNetwork ? "NetworkServer" : "NetworkClient";
-      
+
       return {
         target,
         folder: [destinationFolder, moduleName],
@@ -64,16 +64,21 @@ function getVirtualPath(filepath) {
     // Handle server folder - everything goes to ServerScriptService
     if (subFolder === "server") {
       target = "ServerScriptService";
-      
+
+      // Build folder path including any nested subdirectories
+      // e.g., server/Utils/init.luau should have folder: ["Services", "ExampleService", "Utils"]
+      const nestedFolders = parts.slice(3, -1); // Get folders between "server" and the file
+      const folderPath = [destinationFolder, moduleName, ...nestedFolders];
+
       // If it's init.luau in a subdirectory, use folder name
       if (lowerFilename === "init") {
         const parentFolder = parts[parts.length - 2];
         name = toPascalCase(parentFolder);
       }
-      
+
       return {
         target,
-        folder: [destinationFolder, moduleName],
+        folder: folderPath,
         name,
         file: toPosix(filepath.replace(BASE_PATH + path.sep, "src" + path.sep)),
         moduleType,
@@ -84,16 +89,21 @@ function getVirtualPath(filepath) {
     // Handle shared folder - everything goes to ReplicatedStorage
     if (subFolder === "shared") {
       target = "ReplicatedStorage";
-      
+
+      // Build folder path including any nested subdirectories
+      // e.g., shared/Utils/init.luau should have folder: ["Services", "ExampleService", "Utils"]
+      const nestedFolders = parts.slice(3, -1); // Get folders between "shared" and the file
+      const folderPath = [destinationFolder, moduleName, ...nestedFolders];
+
       // If it's init.luau in a subdirectory, use folder name
       if (lowerFilename === "init") {
         const parentFolder = parts[parts.length - 2];
         name = toPascalCase(parentFolder);
       }
-      
+
       return {
         target,
-        folder: [destinationFolder, moduleName],
+        folder: folderPath,
         name,
         file: toPosix(filepath.replace(BASE_PATH + path.sep, "src" + path.sep)),
         moduleType,
@@ -104,10 +114,14 @@ function getVirtualPath(filepath) {
     // Handle ui folder - goes to ReplicatedStorage
     if (subFolder === "ui") {
       target = "ReplicatedStorage";
-      
+
+      // Build folder path including any nested subdirectories
+      const nestedFolders = parts.slice(3, -1); // Get folders between "ui" and the file
+      const folderPath = [destinationFolder, moduleName, "UI", ...nestedFolders];
+
       return {
         target,
-        folder: [destinationFolder, moduleName, "UI"],
+        folder: folderPath,
         name,
         file: toPosix(filepath.replace(BASE_PATH + path.sep, "src" + path.sep)),
         moduleType,
@@ -119,7 +133,7 @@ function getVirtualPath(filepath) {
     if (parts.length === 3) {
       const isServerFile = lowerFilename.includes("server");
       target = isServerFile ? "ServerScriptService" : "ReplicatedStorage";
-      
+
       return {
         target,
         folder: [destinationFolder, moduleName],
@@ -147,25 +161,25 @@ const tree = {
 
     ReplicatedStorage: {
       $className: "ReplicatedStorage",
-      
+
       Features: {
         $className: "Folder",
       },
-      
+
       Services: {
         $className: "Folder",
       },
-      
+
       Shared: {
         $className: "Folder",
         $path: "src/shared",
       },
-      
+
       UI: {
         $className: "Folder",
         $path: "src/ui",
       },
-      
+
       Packages: {
         $path: "Packages",
       },
@@ -173,19 +187,19 @@ const tree = {
 
     ServerScriptService: {
       $className: "ServerScriptService",
-      
+
       Features: {
         $className: "Folder",
       },
-      
+
       Services: {
         $className: "Folder",
       },
-      
+
       ServerStartup: {
         $path: "src/startup/Server.server.luau",
       },
-      
+
       ServerPackages: {
         $path: "ServerPackages",
       },
@@ -193,23 +207,19 @@ const tree = {
 
     StarterPlayer: {
       $className: "StarterPlayer",
-      
+
       StarterPlayerScripts: {
         $className: "StarterPlayerScripts",
-        
+
         ClientStartup: {
           $path: "src/startup/Client.client.luau",
         },
-      },
-    },
 
-    StarterGui: {
-      $className: "StarterGui",
-      
-      UIStartup: {
-        $path: "src/startup/UI.client.luau",
+        UIStartup: {
+          $path: "src/startup/UI.client.luau",
+        }
       },
-    },
+    }
   },
 };
 
@@ -261,13 +271,13 @@ walk(BASE_PATH, (filepath) => {
   const filename = path.basename(filepath, ".luau");
   if (filename.toLowerCase() === "init") {
     const folderKey = folder.join("/");
-    
+
     // Mark this folder as claimed
     initClaimedFolders.add(folderKey);
-    
+
     // Set the folder to point to the directory containing init.luau
     const dirPath = toPosix(path.dirname(filepath).replace(BASE_PATH + path.sep, "src" + path.sep));
-    
+
     // Get parent and set the module folder to the path
     const parentFolder = folder[folder.length - 1];
     const parent = folder.slice(0, -1).reduce((acc, part) => {
@@ -275,7 +285,7 @@ walk(BASE_PATH, (filepath) => {
       if (!acc[part]) acc[part] = { $className: "Folder" };
       return acc[part];
     }, root);
-    
+
     parent[parentFolder] = { $path: dirPath };
     return;
   }
