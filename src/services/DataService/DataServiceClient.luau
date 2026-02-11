@@ -53,7 +53,7 @@ function DataServiceClient.Init(self: DataServiceClient)
 		end)
 	end)
 
-	self._network.ArrayInsert.SetCallback(function(key, index)
+	self._network.ArrayRemove.SetCallback(function(key, index)
 		self:WaitForDataAsync():andThen(function()
 			self._data:ArrayRemove(key.value, index)
 		end)
@@ -133,7 +133,7 @@ function DataServiceClient.WaitForDataAsync(self: DataServiceClient): Promise.Ty
 
 	return Promise.fromEvent(initializationSignal, function()
 		return self._data ~= nil
-	end):andThenReturn(data)
+	end):andThenReturn(self._data)
 end
 
 function DataServiceClient._initializeData(self: DataServiceClient, data: any)
