@@ -140,8 +140,8 @@ function DataServiceServer.WaitForDataAsync(self: DataServiceServer, player: Pla
 
 	return Promise.race({
 		Promise.fromEvent(waitSignal, function()
-			return self._activeProfiles[player] ~= nil
-		end):andThenReturn(self._activeProfiles[player]),
+			return self._dataProfiles[player] ~= nil
+		end):andThenReturn(self._dataProfiles[player]),
 
 		Promise.fromEvent(Players.PlayerRemoving, function(leavingPlayer)
 			return leavingPlayer == player
