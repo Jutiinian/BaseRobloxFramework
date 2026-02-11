@@ -11,5 +11,8 @@ ServerPackages/
 sourcemap.json
 wally.lock
 
+# Network Files
+**/.network/
+
 # macOS system files
 .DS_Store
