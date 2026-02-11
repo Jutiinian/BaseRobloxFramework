@@ -111,25 +111,7 @@ end
 	
 	Examples:
 	```lua
-	-- Save a specific player's data after a purchase
-	MarketplaceService.ProcessReceipt = function(receiptInfo)
-		local player = Players:GetPlayerByUserId(receiptInfo.PlayerId)
-		-- ... grant items ...
-		DataServiceServer:SaveData(player) -- Force save
-		return Enum.ProductPurchaseDecision.PurchaseGranted
-	end
-	
-	-- Save all players before shutdown
-	game:BindToClose(function()
-		DataServiceServer:SaveData() -- Saves everyone
-		wait(3) -- Give time for saves to complete
-	end)
-	
-	-- Save after critical state changes
-	local function grantRareItem(player, itemId)
-		DataServiceServer:ArrayInsert(player, "Inventory.Items", itemId)
-		DataServiceServer:SaveData(player) -- Force save to prevent loss
-	end
+	DataServiceServer:SaveData(player)
 	```
 ]]
 function DataServiceServer.SaveData(self: DataServiceServer, player: Player?)
@@ -160,17 +142,10 @@ end
 	
 	Example:
 	```lua
-	-- Check if profile is loaded
 	local profile = DataServiceServer:GetProfile(player)
 	if profile then
 		print("Profile loaded for:", player.Name)
 		print("Last save:", profile.LastSavedTime)
-	end
-	
-	-- Access raw profile data (not recommended, use Get() instead)
-	local profile = DataServiceServer:GetProfile(player)
-	if profile then
-		local coins = profile.Data.Currency.Coins
 	end
 	```
 	
@@ -226,53 +201,11 @@ end
 	
 	Examples:
 	```lua
-	-- Basic usage
 	DataServiceServer:WaitForDataAsync(player):andThen(function(data)
 		local coins = data:Get("Currency.Coins")
 		print(player.Name, "has", coins, "coins")
 	end):catch(function(err)
 		warn("Failed to load data for", player.Name, ":", err)
-	end)
-	
-	-- Chain multiple async operations
-	DataServDataServiceServerice:WaitForDataAsync(player)
-		:andThen(function(data)
-			local level = data:Get("Stats.Level")
-			return loadPlayerAssets(player, level)
-		end)
-		:andThen(function()
-			return setupPlayerCharacter(player)
-		end)
-		:andThen(function()
-			player:LoadCharacter()
-		end)
-		:catch(function(err)
-			player:Kick("Failed to load data: " .. tostring(err))
-		end)
-	
-	-- Handle player leaving during data load
-	DataServiceServer:WaitForDataAsync(player)
-		:andThen(function(data)
-			-- This won't run if player left
-			grantDailyReward(player, data)
-		end)
-		:catch(function(err)
-			if err == "Player left before data loaded" then
-				print(player.Name, "left before data could load")
-			end
-		end)
-	
-	-- Use in an async function with await
-	local function handlePlayerJoin(player)
-		local data = DataServiceServer:WaitForDataAsync(player):await()
-		local firstTime = data:Get("Stats.FirstJoin")
-		if firstTime then
-			showTutorial(player)
-		end
-	end
-	
-	Players.PlayerAdded:Connect(function(player)
-		Promise.try(handlePlayerJoin, player):catch(warn)
 	end)
 	```
 	
@@ -425,18 +358,6 @@ end
 	DataServiceServer:Update(player, "Analytics.SessionsPlayed", function(count)
 		return count + 1
 	end, true) -- No replication
-	
-	-- Conditional update
-	local success = DataServiceServer:Update(player, "Currency.Coins", function(coins)
-		if coins >= 500 then
-			return coins - 500 -- Deduct cost
-		end
-		return coins -- Not enough, no change
-	end)
-	
-	if success < coins then
-		-- Purchase failed, not enough coins
-	end
 	```
 	
 	Benefits over Get() + Set():
@@ -516,28 +437,17 @@ end
 	Examples:
 	```lua
 	-- Remove item by index
-	local removedItem = DataService:ArrayRemove(player, "Inventory.Items", 3)
+	local removedItem = DataServiceServer:ArrayRemove(player, "Inventory.Items", 3)
 	print("Removed:", removedItem.Id)
 	
 	-- Remove first element
-	DataService:ArrayRemove(player, "Notifications", 1)
+	DataServiceServer:ArrayRemove(player, "Notifications", 1)
 	
 	-- Remove friend from list
-	local friends = DataService:Get(player, "Social.Friends")
-	for i, friendId in ipairs(friends) do
-		if friendId == targetFriendId then
-			DataService:ArrayRemove(player, "Social.Friends", i)
-			break
-		end
-	end
-	
-	-- Remove completed quest
-	local activeQuests = DataService:Get(player, "Quests.Active")
-	for i, quest in ipairs(activeQuests) do
-		if quest.QuestId == completedQuestId then
-			local removed = DataService:ArrayRemove(player, "Quests.Active", i)
-			-- Add to completed quests
-			DataService:ArrayInsert(player, "Quests.Completed", removed)
+	local items = DataServiceServer:Get(player, "Inventory.Items")
+	for i, itemData in ipairs(items) do
+		if itemData.ID == targetItemID then
+			DataServiceServer:ArrayRemove(player, "Inventory.Items", i)
 			break
 		end
 	end
@@ -565,19 +475,8 @@ end
 	
 	Examples:
 	```lua
-	-- Listen for level changes
 	DataServiceServer:GetValueChangedSignal(player, "Stats.Level"):Connect(function(newLevel)
 		print(player.Name, "reached level", newLevel)
-		checkLevelAchievements(player, newLevel)
-	end)
-	
-	-- Listen for VIP status changes
-	DataServiceServer:GetValueChangedSignal(player, "Subscriptions.VIP"):Connect(function(isVIP)
-		if isVIP then
-			grantVIPPerks(player)
-		else
-			removeVIPPerks(player)
-		end
 	end)
 	```
 ]]
@@ -594,9 +493,8 @@ end
 	
 	Example:
 	```lua
-	-- Notify when new items are added
 	DataServiceServer:GetArrayInsertedSignal(player, "Inventory.Items"):Connect(function(index, item)
-		notifyPlayer(player, "New item acquired: " .. item.Name)
+		print(player, "New item acquired:", item)
 	end)
 	```
 ]]
@@ -613,9 +511,8 @@ end
 	
 	Example:
 	```lua
-	-- Track item removals
 	DataServiceServer:GetArrayRemovedSignal(player, "Inventory.Items"):Connect(function(index, item)
-		logItemRemoval(player, item)
+		print(player, "Item removed:", item)
 	end)
 	```
 ]]
@@ -632,9 +529,8 @@ end
 	
 	Example:
 	```lua
-	-- Listen for any currency changes
-	DataService:GetIndexChangedSignal(player, "Currency"):Connect(function(currencyType, newAmount)
-		updateCurrencyUI(player, currencyType, newAmount)
+	DataServiceServer:GetIndexChangedSignal(player, "Currency"):Connect(function(currencyType, newAmount)
+		print(player, currencyType, newAmount)
 	end)
 	```
 ]]
@@ -655,41 +551,17 @@ end
 	
 	Examples:
 	```lua
-	-- Observe VIP status and grant/remove perks
-	local disconnect = DataServiceServer:ObserveData(player, "Subscriptions.VIP", function(isVIP)
-		if isVIP then
-			local perkTag = Instance.new("StringValue")
-			perkTag.Name = "VIPPerks"
-			perkTag.Parent = player
-			
-			-- Return cleanup function
-			return function()
-				perkTag:Destroy()
-			end
-		end
-		
-		return function() end -- No cleanup needed
-	end)
-	
-	-- Later: stop observing
-	disconnect()
-	
-	-- Observe level and update character attributes
-	DataServiceServer:ObserveData(player, "Stats.Level", function(level)
-		player:SetAttribute("Level", level)
-		
-		local character = player.Character or player.CharacterAdded:Wait()
-		local humanoid = character:FindFirstChildOfClass("Humanoid")
-		if humanoid then
-			humanoid.MaxHealth = 100 + (level * 10)
-			humanoid.Health = humanoid.MaxHealth
-		end
+	local disconnect = DataServiceServer:ObserveData(player, "Stats.Level", function(level)
+		print("Level is now:", level)
 		
 		-- Cleanup when level changes again
 		return function()
 			print("Level changed, old value was:", level)
 		end
 	end)
+
+	-- Later: stop observing
+	disconnect()
 	```
 ]]
 function DataServiceServer.ObserveData(self: DataServiceServer, player: Player, indexPath: IndexPath, factory: (value: any) -> Disconnect): Disconnect
@@ -710,30 +582,22 @@ end
 	
 	Examples:
 	```lua
-	-- Observe all active quests
 	local disconnect = DataServiceServer:ObserveTableData(player, "Quests.Active", function(questId, questData)
 		print("Tracking quest:", questId, questData)
 		
-		-- Set up quest tracking UI
-		local questUI = createQuestUI(questId, questData)
-		
 		-- Return cleanup
 		return function()
+			print("No longer tracking quest:", questID, questData)
 			questUI:Destroy()
 		end
 	end, true) -- Monitor value changes too
-	
-	-- Observe equipped items
+
 	DataServiceServer:ObserveTableData(player, "Character.Equipped", function(slot, itemId)
 		-- Equip the item visually
-		local character = player.Character
-		if character then
-			equipItemToCharacter(character, slot, itemId)
-		end
 		
 		-- Cleanup function
 		return function()
-			unequipItemFromCharacter(character, slot)
+			-- unequip item
 		end
 	end)
 	

@@ -111,19 +111,9 @@ end
 	
 	Examples:
 	```lua
-	-- Listen for volume changes
-	local volumeSignal = DataServiceClient:GetValueChangedSignal("Settings.Audio.Volume")
-	volumeSignal:Connect(function(newVolume)
-		print("Volume changed to:", newVolume)
-		SoundService.Volume = newVolume
+	DataServiceClient:GetValueChangedSignal("Stats.Level"):Connect(function(newLevel)
+		print(player.Name, "reached level", newLevel)
 	end)
-	
-	-- Listen for currency changes
-	local coinConnection = DataServiceClient:GetValueChangedSignal("Currency.Coins"):Connect(function(newCoins)
-		updateCoinsUI(newCoins)
-	end)
-
-	coinConnection:Disconnect()
 	```
 	
 	Note: The signal will only fire when the server updates this value. Local changes are not possible on the client.
@@ -140,19 +130,9 @@ end
 	
 	Examples:
 	```lua
-	-- Listen for new inventory items
-	local insertSignal = DataServiceClient:GetArrayInsertedSignal("Inventory.Items")
-	insertSignal:Connect(function(index, item)
-		print("New item added at position", index, ":", item)
-		addItemToUI(item)
+	DataServiceClient:GetArrayInsertedSignal("Inventory.Items"):Connect(function(index, item)
+		print(player, "New item acquired:", item)
 	end)
-	
-	-- Listen for friend additions
-	local friendsConnection = DataServiceClient:GetArrayInsertedSignal("Social.Friends"):Connect(function(index, friendUserId)
-		notifyNewFriend(friendUserId)
-	end)
-
-	friendsConnection:Disconnect()
 	```
 ]]
 function DataServiceClient.GetArrayInsertedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.ClassicSignal<number, any>
@@ -167,11 +147,8 @@ end
 	
 	Examples:
 	```lua
-	-- Listen for removed inventory items
-	local removeSignal = DataServiceClient:GetArrayRemovedSignal("Inventory.Items")
-	removeSignal:Connect(function(index, removedItem)
-		print("Item removed from position", index, ":", removedItem)
-		removeItemFromUI(removedItem)
+	DataServiceClient:GetArrayRemovedSignal("Inventory.Items"):Connect(function(index, item)
+		print(player, "Item removed:", item)
 	end)
 	```
 ]]
@@ -189,20 +166,14 @@ end
 	
 	Examples:
 	```lua
-	-- Listen for any settings changes
 	local settingsSignal = DataServiceClient:GetIndexChangedSignal("Settings")
 	settingsSignal:Connect(function(key, value)
 		print("Setting changed:", key, "=", value)
 		if key == "Audio" then
-			updateAudioSettings(value)
+			print("Audio changed")
 		elseif key == "Graphics" then
-			updateGraphicsSettings(value)
+			print("Graphics changed")
 		end
-	end)
-	
-	-- Listen for any stat changes
-	local statsConnection = DataServiceClient:GetIndexChangedSignal("Stats"):Connect(function(statName, newValue)
-		updateStatUI(statName, newValue)
 	end)
 	```
 ]]
@@ -222,24 +193,15 @@ end
 	
 	Examples:
 	```lua
-	-- Observe VIP status and grant/remove perks
-	local disconnect = DataServiceClient:ObserveData("Subscriptions.VIP", function(isVIP)
-		if isVIP then
-			local perkTag = Instance.new("StringValue")
-			perkTag.Name = "VIPPerks"
-			perkTag.Parent = player
-			
-			-- Return cleanup function
-			return function()
-				perkTag:Destroy()
-			end
-		end
+	local disconnect = DataServiceClient:ObserveData("Stats.Level", function(level)
+		print("Level is now:", level)
 		
-		return function() 
-			print("IsVIP has changed")
+		-- Cleanup when level changes again
+		return function()
+			print("Level changed, old value was:", level)
 		end
 	end)
-	
+
 	-- Later: stop observing
 	disconnect()
 	```
@@ -261,30 +223,22 @@ end
 	
 	Examples:
 	```lua
-	-- Observe all active quests
 	local disconnect = DataServiceClient:ObserveTableData("Quests.Active", function(questId, questData)
 		print("Tracking quest:", questId, questData)
 		
-		-- Set up quest tracking UI
-		local questUI = createQuestUI(questId, questData)
-		
 		-- Return cleanup
 		return function()
+			print("No longer tracking quest:", questID, questData)
 			questUI:Destroy()
 		end
 	end, true) -- Monitor value changes too
-	
-	-- Observe equipped items
+
 	DataServiceClient:ObserveTableData("Character.Equipped", function(slot, itemId)
 		-- Equip the item visually
-		local character = player.Character
-		if character then
-			equipItemToCharacter(character, slot, itemId)
-		end
 		
 		-- Cleanup function
 		return function()
-			unequipItemFromCharacter(character, slot)
+			-- unequip item
 		end
 	end)
 	
@@ -343,25 +297,6 @@ end
 	end):catch(function(err)
 		warn("Failed to load data:", err)
 	end)
-	
-	-- Chain multiple operations
-	DataServiceClient:WaitForDataAsync()
-		:andThen(function(data)
-			local level = data:Get("Stats.Level")
-			return loadLevelAssets(level)
-		end)
-		:andThen(function()
-			print("Level assets loaded!")
-		end)
-	
-	-- Use with await in async context
-	local function setupPlayer()
-		local data = DataServiceClient:WaitForDataAsync():await()
-		local characterData = data:Get("Character")
-		applyCharacterCustomization(characterData)
-	end
-	
-	Promise.try(setupPlayer):catch(warn)
 	```
 	
 	Benefits over WaitForData():
