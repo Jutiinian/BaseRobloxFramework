@@ -13,6 +13,15 @@
           },
           "NetworkClient": {
             "$path": "src/features/Example/network/Client.luau"
+          },
+          "UI": {
+            "$className": "Folder",
+            "ExampleSlice": {
+              "$path": "src/features/Example/ui/ExampleSlice.luau"
+            },
+            "mount": {
+              "$path": "src/features/Example/ui/mount.luau"
+            }
           }
         }
       },
@@ -34,6 +43,24 @@
           },
           "DataTemplate": {
             "$path": "src/services/DataService/shared/DataTemplate.luau"
+          },
+          "PathUtils": {
+            "$path": "src/services/DataService/shared/PathUtils.luau"
+          }
+        },
+        "MarketService": {
+          "$className": "Folder",
+          "MarketServiceClient": {
+            "$path": "src/services/MarketService/MarketServiceClient.luau"
+          },
+          "NetworkClient": {
+            "$path": "src/services/MarketService/network/Client.luau"
+          },
+          "MarketServiceUtils": {
+            "$path": "src/services/MarketService/shared/MarketServiceUtils.luau"
+          },
+          "ProductRegistry": {
+            "$path": "src/services/MarketService/shared/ProductRegistry.luau"
           }
         }
       },
@@ -73,6 +100,15 @@
           "NetworkServer": {
             "$path": "src/services/DataService/network/Server.luau"
           }
+        },
+        "MarketService": {
+          "$className": "Folder",
+          "MarketServiceServer": {
+            "$path": "src/services/MarketService/MarketServiceServer.luau"
+          },
+          "NetworkServer": {
+            "$path": "src/services/MarketService/network/Server.luau"
+          }
         }
       },
       "ServerStartup": {
@@ -88,13 +124,10 @@
         "$className": "StarterPlayerScripts",
         "ClientStartup": {
           "$path": "src/startup/Client.client.luau"
+        },
+        "UIStartup": {
+          "$path": "src/startup/UI.client.luau"
         }
-      }
-    },
-    "StarterGui": {
-      "$className": "StarterGui",
-      "UIStartup": {
-        "$path": "src/startup/UI.client.luau"
       }
     }
   }
