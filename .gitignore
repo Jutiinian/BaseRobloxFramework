@@ -12,7 +12,7 @@ sourcemap.json
 wally.lock
 
 # Network Files
-**/.network/
+**/network/
 
 # macOS system files
 .DS_Store
