@@ -3,43 +3,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- || Dependencies || --
 local DataServiceTypes = require(script.Parent.DataServiceTypes)
+local PathUtils = require(script.Parent.PathUtils)
+
 local Signal = require(ReplicatedStorage.Packages.signal)
 
 -- || Variables || --
 local pathCache = {} :: { [string]: { string } }
-
-local strFind = string.find
-local strSplit = string.split
+setmetatable(pathCache, {__mode = "k"})
 
 type Disconnect = DataServiceTypes.Disconnect
 type IndexPath = DataServiceTypes.IndexPath
 type WeakValueTable<T> = typeof(setmetatable({} :: { [string]: T }, { __mode = "v" }))
-
--- || Private Functions || --
-local function normalizePath(indexPath: IndexPath): { string } | string
-	if typeof(indexPath) == "string" then
-		local cached = pathCache[indexPath]
-		if cached then
-			return cached
-		end
-
-		if strFind(indexPath, ".", 1, true) then
-			local splitPath = strSplit(indexPath, ".")
-			pathCache[indexPath] = splitPath
-			return splitPath
-		end
-	end
-
-	return indexPath
-end
-
-local function stringifyPath(indexPath: IndexPath): string
-	if type(indexPath) == "string" then
-		return indexPath
-	end
-
-	return table.concat(indexPath, ".")
-end
 
 -- || Public API || --
 local DataProfile = {}
@@ -87,41 +61,66 @@ function DataProfile.new<T>(data: T): DataProfile<T>
 end
 
 -- Usable Functions
-function DataProfile.Get<T>(self: DataProfile<T>, indexPath: IndexPath?): T & any
+function DataProfile.Get<T>(self: DataProfile<T>, indexPath: IndexPath?): T | any
 	if indexPath == nil then
 		return self._data
 	end
-
-	local data = self._data
-	indexPath = normalizePath(indexPath)
-
-	if type(indexPath) == "string" then
-		return data[indexPath]
+	
+	local normalized, isSplit = PathUtils.normalizePath(indexPath)
+	
+	if not isSplit then
+		return (self._data :: any)[normalized]
 	end
-
-	for _, key in ipairs(indexPath :: { string }) do
-		data = data[key]
+	
+	local current = self._data
+	for _, key in ipairs(normalized :: { string }) do
+		if type(current) ~= "table" then
+			return nil
+		end
+		
+		current = current[key]
+		if current == nil then
+			return nil
+		end
 	end
-
-	return data
+	
+	return current
 end
 
 function DataProfile.Set<T>(self: DataProfile<T>, indexPath: IndexPath, value: any): ()
+	assert(indexPath ~= nil, "IndexPath cannot be nil in Set")
+	
+	local normalized, isSplit = PathUtils.normalizePath(indexPath)
 	local data = self._data
-	indexPath = normalizePath(indexPath)
 
-	if type(indexPath) == "string" then
-		data[indexPath] = value
-		self:_fireChangedSignals(indexPath)
+	if not isSplit then
+		local key = normalized :: string
+
+		if data[key] == value then
+			return
+		end
+		
+		data[key] = value
+		self:_fireChangedSignals(key)
 		return
 	end
 
-	for i = 1, #indexPath - 1 do
-		data = data[indexPath[i]]
+	local path = normalized :: { string }
+	for i = 1, #path - 1 do
+		data = data[path[i]]
+		if data == nil then
+			error(`Cannot set value at path {PathUtils.stringifyPath(indexPath)}: parent does not exist`)
+		end
 	end
 
-	data[indexPath[#indexPath]] = value
-	self:_fireChangedSignals(indexPath)
+	local finalKey = path[#path]
+
+	if data[finalKey] == value then
+		return
+	end
+	
+	data[finalKey] = value
+	self:_fireChangedSignals(normalized)
 end
 
 function DataProfile.Update<T>(self: DataProfile<T>, indexPath: IndexPath, callback: (any) -> any): any
@@ -137,26 +136,30 @@ function DataProfile.ArrayInsert<T>(self: DataProfile<T>, indexPath: IndexPath, 
 	local data = self:Get(indexPath)
 	assert(type(data) == "table", "Data at path is not a table")
 
-	if index then
+	if index and index <= #data then
 		table.insert(data, index, value)
 	else
-		table.insert(data, value)
+		data[#data + 1] = value
+		index = #data
 	end
 
-	local pathString = self:_fireChangedSignals(indexPath)
+	local pathString = PathUtils.stringifyPath(indexPath)
+	self:_fireChangedSignals(pathString)
 
 	local signal = self._signals.ArrayInserted[pathString]
 	if signal then
-		signal:Fire(index or #data, value)
+		signal:Fire(index, value)
 	end
 end
 
 function DataProfile.ArrayRemove<T>(self: DataProfile<T>, indexPath: IndexPath, index: number): any
 	local data = self:Get(indexPath)
 	assert(type(data) == "table", "Data at path is not a table")
+	assert(index >= 1 and index <= #data, `Index {index} out of bounds`)
 
 	local value = table.remove(data, index)
-	local pathString = self:_fireChangedSignals(indexPath)
+	local pathString = PathUtils.stringifyPath(indexPath)
+	self:_fireChangedSignals(pathString)
 
 	local signal = self._signals.ArrayRemoved[pathString]
 	if signal then
@@ -170,9 +173,11 @@ function DataProfile.GetValueChangedSignal<T>(self: DataProfile<T>, indexPath: I
 	return self:_retrieveSignal(indexPath, "ValueChanged")
 end
 
-function DataProfile.GetIndexChangedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<string, any>
-	return self:_retrieveSignal(indexPath, "ChildChanged")
+function DataProfile.GetChildChangedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<string, any>
+	return self:_retrieveSignal(indexPath, "IndexChanged")
 end
+
+DataProfile.GetIndexChangedSignal = DataProfile.GetChildChangedSignal
 
 function DataProfile.GetArrayInsertedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<number, any>
 	return self:_retrieveSignal(indexPath, "ArrayInserted")
@@ -267,15 +272,21 @@ end
 
 -- Signal Functions
 function DataProfile._fireChangedSignals<T>(self: DataProfile<T>, indexPath: IndexPath): string
-	if type(indexPath) == "string" then
-		self:_fireValueChangedSignal(indexPath, self:Get(indexPath))
-		return indexPath
+	local normalized, isSplit = PathUtils.normalizePath(indexPath)
+	
+	-- Fast path for single key
+	if not isSplit then
+		local key = normalized :: string
+		self:_fireValueChangedSignal(key, ((self._data :: any)[key]))
+		return key
 	end
 
+	-- Navigate and fire signals at each level
+	local path = normalized :: { string }
 	local value = self._data
 	local indexString = ""
 
-	for i, key in ipairs(indexPath) do
+	for i, key in ipairs(path) do
 		value = value[key]
 
 		if i > 1 then
@@ -285,7 +296,6 @@ function DataProfile._fireChangedSignals<T>(self: DataProfile<T>, indexPath: Ind
 		end
 
 		indexString ..= key
-
 		self:_fireValueChangedSignal(indexString, value)
 	end
 
@@ -307,7 +317,7 @@ function DataProfile._fireIndexChangedSignal<T>(self: DataProfile<T>, indexPath:
 end
 
 function DataProfile._retrieveSignal<T>(self: DataProfile<T>, indexPath: IndexPath, signalType: string): Signal.Signal<any, any>
-    local pathString = stringifyPath(indexPath)
+    local pathString = PathUtils.stringifyPath(indexPath)
     local weakSignals = self._weakSignals[signalType]
     local strongSignals = self._signals[signalType]
     
