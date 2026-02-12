@@ -1,3 +1,5 @@
+--!strict
+
 -- || Services || --
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
@@ -31,7 +33,7 @@ function MarketServiceUtils.PromptAsync(player: Player, productID: number, isGam
 	local eventConnection: RBXScriptConnection?
 	
 	return Promise.new(function(resolve, reject)
-		eventConnection = event:Connect(function(purchaser, id, wasPurchased)
+		eventConnection = event:Connect(function(purchaser: Player, id: number, wasPurchased: boolean)
 			if purchaser == player and id == productID then
 				resolve(wasPurchased)
 			end

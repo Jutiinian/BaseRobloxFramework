@@ -548,7 +548,7 @@ end
 MarketServiceServer.GetProductID = MarketServiceUtils.GetProductID :: (
 	self: MarketServiceServer,
 	productName: string
-) -> number
+) -> number?
 
 -------------------------------------------------------------------------------------------------------------------------------
 -- Private Service Functions

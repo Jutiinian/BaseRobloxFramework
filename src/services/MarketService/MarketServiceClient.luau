@@ -398,9 +398,9 @@ end
 	```
 ]]
 MarketServiceClient.GetProductID = MarketServiceUtils.GetProductID :: (
-	self: MarketServiceClient,
+self: MarketServiceClient,
 	productName: string
-) -> number
+) -> number?
 
 -------------------------------------------------------------------------------------------------------------------------------
 -- Private Methods
