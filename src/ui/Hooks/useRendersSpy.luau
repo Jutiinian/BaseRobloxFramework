@@ -14,15 +14,15 @@ local useEffect = React.useEffect
 -- || Hook || --
 
 -- Returns the amount of times the component has been rendered since mounting. This is a very useful hook for testing.
-local function useRenderSpy()
-    local count = useRef(0)
+local function useRenderSpy(): number
+	local count = useRef(0)
 
-    useEffect(function()
-        local current = count.current :: number
+	useEffect(function()
+		local current = count.current :: number
 		count.current = current + 1
-    end)
+	end)
 
-    return count.current
+	return count.current
 end
 
 return useRenderSpy
