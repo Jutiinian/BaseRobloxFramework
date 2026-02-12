@@ -25,8 +25,8 @@ export type DataProfile<T> = typeof(setmetatable(
 		_signals: {
 			ValueChanged: { [string]: Signal.ClassicSignal<any, any?> },
 			IndexChanged: { [string]: Signal.ClassicSignal<any, any?> },
-			ArrayInserted: { [string]: Signal.ClassicSignal<any> },
-			ArrayRemoved: { [string]: Signal.ClassicSignal<any> },
+			ArrayInserted: { [string]: Signal.ClassicSignal<number, any> },
+			ArrayRemoved: { [string]: Signal.ClassicSignal<number, any> },
 		},
 		_weakSignals: {
 			ValueChanged: WeakValueTable<Signal.ClassicSignal<any, any?>>,
@@ -78,7 +78,7 @@ function DataProfile.Get<T>(self: DataProfile<T>, indexPath: IndexPath?): T | an
 			return nil
 		end
 		
-		current = current[key]
+		current = (current :: any)[key]
 		if current == nil then
 			return nil
 		end
@@ -91,7 +91,7 @@ function DataProfile.Set<T>(self: DataProfile<T>, indexPath: IndexPath, value: a
 	assert(indexPath ~= nil, "IndexPath cannot be nil in Set")
 	
 	local normalized, isSplit = PathUtils.normalizePath(indexPath)
-	local data = self._data
+	local data = self._data :: any
 
 	if not isSplit then
 		local key = normalized :: string
@@ -148,7 +148,7 @@ function DataProfile.ArrayInsert<T>(self: DataProfile<T>, indexPath: IndexPath, 
 
 	local signal = self._signals.ArrayInserted[pathString]
 	if signal then
-		signal:Fire(index, value)
+		signal:Fire(index :: number, value)
 	end
 end
 
@@ -222,7 +222,7 @@ end
 
 -- TODO: MAYBE make separate observe array function
 function DataProfile.ObserveTableData<T, K, V>(self: DataProfile<T>, indexPath: IndexPath, factory: (key: K, value: V) -> Disconnect?, monitorLastValue: boolean?): Disconnect
-	local connections: { [K]: {disconnect: Disconnect?, lastValue: V?} } = {}
+	local connections: { [K]: {disconnect: Disconnect, lastValue: V?} } = {}
 
 	local function listener(state: {[K]: V})
 		state = state or {}
@@ -258,7 +258,7 @@ function DataProfile.ObserveTableData<T, K, V>(self: DataProfile<T>, indexPath: 
 
 	task.defer(function()
 		if not conn.Connected then return end
-		listener(self:Get(indexPath))
+		listener(self:Get(indexPath) :: any)
 	end)
 
 	return function()
@@ -283,7 +283,7 @@ function DataProfile._fireChangedSignals<T>(self: DataProfile<T>, indexPath: Ind
 
 	-- Navigate and fire signals at each level
 	local path = normalized :: { string }
-	local value = self._data
+	local value = self._data :: any
 	local indexString = ""
 
 	for i, key in ipairs(path) do
