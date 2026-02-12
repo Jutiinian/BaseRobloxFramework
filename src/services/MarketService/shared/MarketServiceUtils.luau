@@ -26,15 +26,15 @@ function MarketServiceUtils.PromptAsync(player: Player, productID: number, isGam
 		return Promise.reject("Player is not in the game")
 	end
 	
-	local event = if isGamepass
+	local event: RBXScriptSignal<Player, number, boolean> | RBXScriptSignal<number, number, boolean> = if isGamepass
 		then MarketplaceService.PromptGamePassPurchaseFinished
 		else MarketplaceService.PromptProductPurchaseFinished
 	
 	local eventConnection: RBXScriptConnection?
 	
 	return Promise.new(function(resolve, reject)
-		eventConnection = event:Connect(function(purchaser: Player, id: number, wasPurchased: boolean)
-			if purchaser == player and id == productID then
+		eventConnection = (event :: RBXScriptSignal):Connect(function(purchaser: Player | number, id: number, wasPurchased: boolean)
+			if (purchaser == player or purchaser == player.UserId) and id == productID then
 				resolve(wasPurchased)
 			end
 		end)
@@ -80,7 +80,7 @@ function MarketServiceUtils.FetchProductPriceAsync(productId: number, infoType: 
 		end
 
 		local success, result = pcall(function()
-			return MarketplaceService:GetProductInfo(productId, infoType)
+			return MarketplaceService:GetProductInfoAsync(productId, infoType)
 		end)
 		
 		if not success then
