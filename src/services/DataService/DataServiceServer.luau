@@ -8,6 +8,7 @@
 	@version February 11, 2026
 ]]
 
+--!optimize 2
 --!strict
 
 -- || Services || --
@@ -53,11 +54,11 @@ local DataServiceServer = {
 export type DataServiceServer = typeof(DataServiceServer)
 
 type dataOptions = {
-	useMock: boolean?,              -- Use mock data store (for testing)
-	overridenUserId: number?,       -- Override the UserId for data keys (for testing)
-	dontSave: boolean?,             -- Don't save data (read-only mode)
-	profileStoreIndex: string?,     -- Custom ProfileStore index name
-	profileStoreDataPrefix: string?,-- Custom prefix for data keys
+	useMock: boolean?, -- Use mock data store (for testing)
+	overridenUserId: number?, -- Override the UserId for data keys (for testing)
+	dontSave: boolean?, -- Don't save data (read-only mode)
+	profileStoreIndex: string?, -- Custom ProfileStore index name
+	profileStoreDataPrefix: string?, -- Custom prefix for data keys
 	replicationIgnoreList: { string }?, -- List of data keys to not replicate to clients
 }
 
@@ -105,7 +106,8 @@ function DataServiceServer.Init(self: DataServiceServer, options: dataOptions)
 	self._network = require(script.Parent.NetworkServer)
 
 	self.options = options
-	self.playerStore = ProfileStore.New(options.profileStoreIndex or DEFAULT_PROFILE_STORE_INDEX, DataTemplate)
+	self.playerStore =
+		ProfileStore.New(options.profileStoreIndex or DEFAULT_PROFILE_STORE_INDEX, DataTemplate)
 
 	Observers.observePlayer(function(player: Player)
 		self:_playerAdded(player)
@@ -229,7 +231,10 @@ end
 	- Can be chained with other operations
 	- Better error handling
 ]]
-function DataServiceServer.WaitForDataAsync(self: DataServiceServer, player: Player): Promise.TypedPromise<dataProfile>
+function DataServiceServer.WaitForDataAsync(
+	self: DataServiceServer,
+	player: Player
+): Promise.TypedPromise<dataProfile>
 	local profile = self._dataProfiles[player]
 	if profile then
 		return Promise.resolve(profile)
@@ -280,7 +285,10 @@ end
 	```
 ]]
 function DataServiceServer.Get(self: DataServiceServer, player: Player, indexPath: IndexPath?): any
-	assert(self._dataProfiles[player], "[DataServiceServer] Player data not loaded yet. Possibly wait for initialization.")
+	assert(
+		self._dataProfiles[player],
+		"[DataServiceServer] Player data not loaded yet. Possibly wait for initialization."
+	)
 	return self._dataProfiles[player]:Get(indexPath)
 end
 
@@ -321,15 +329,31 @@ end
 	
 	Note: For arrays, use ArrayInsert() and ArrayRemove() instead.
 ]]
-function DataServiceServer.Set(self: DataServiceServer, player: Player, indexPath: IndexPath, value: any, NoReplication: boolean?): ()
-	assert(self._network, "[DataServiceServer] Networker has not been loaded yet. Please run DataServiceServer:Init().")
-	assert(self._dataProfiles[player], "[DataServiceServer] Player data not loaded yet. Possibly wait for initialization.")
+function DataServiceServer.Set(
+	self: DataServiceServer,
+	player: Player,
+	indexPath: IndexPath,
+	value: any,
+	NoReplication: boolean?
+): ()
+	assert(
+		self._network,
+		"[DataServiceServer] Networker has not been loaded yet. Please run DataServiceServer:Init()."
+	)
+	assert(
+		self._dataProfiles[player],
+		"[DataServiceServer] Player data not loaded yet. Possibly wait for initialization."
+	)
 
 	if not NoReplication then
-		self._network.DataUpdate.Fire(player, {
-			Type = type(indexPath) == "table" and "Table" or "String",
-			value = indexPath,
-		} :: any, value)
+		self._network.DataUpdate.Fire(
+			player,
+			{
+				Type = type(indexPath) == "table" and "Table" or "String",
+				value = indexPath,
+			} :: any,
+			value
+		)
 	end
 
 	self._dataProfiles[player]:Set(indexPath, value)
@@ -383,17 +407,33 @@ end
 	- Cleaner code for transformations
 	- Returns the new value immediately
 ]]
-function DataServiceServer.Update(self: DataServiceServer, player: Player, indexPath: IndexPath, callback: (any) -> any, NoReplication: boolean?): any
-	assert(self._network, "[DataServiceServer] Networker has not been loaded yet. Please run DataServiceServer:Init().")
-	assert(self._dataProfiles[player], "[DataServiceServer] Player data not loaded yet. Possibly wait for initialization.")
+function DataServiceServer.Update(
+	self: DataServiceServer,
+	player: Player,
+	indexPath: IndexPath,
+	callback: (any) -> any,
+	NoReplication: boolean?
+): any
+	assert(
+		self._network,
+		"[DataServiceServer] Networker has not been loaded yet. Please run DataServiceServer:Init()."
+	)
+	assert(
+		self._dataProfiles[player],
+		"[DataServiceServer] Player data not loaded yet. Possibly wait for initialization."
+	)
 
 	local newValue = self._dataProfiles[player]:Update(indexPath, callback)
 
 	if not NoReplication then
-		self._network.DataUpdate.Fire(player, {
-			Type = type(indexPath) == "table" and "Table" or "String",
-			value = indexPath,
-		} :: any, newValue)
+		self._network.DataUpdate.Fire(
+			player,
+			{
+				Type = type(indexPath) == "table" and "Table" or "String",
+				value = indexPath,
+			} :: any,
+			newValue
+		)
 	end
 
 	return newValue
@@ -435,15 +475,33 @@ end
 	
 	Note: The array must already exist at the specified path.
 ]]
-function DataServiceServer.ArrayInsert(self: DataServiceServer, player: Player, indexPath: IndexPath, value: any, index: number?, NoReplication: boolean?)
-	assert(self._network, "[DataServiceServer] Networker has not been loaded yet. Please run DataServiceServer:Init().")
-	assert(self._dataProfiles[player], "[DataServiceServer] Player data not loaded yet. Possibly wait for initialization.")
+function DataServiceServer.ArrayInsert(
+	self: DataServiceServer,
+	player: Player,
+	indexPath: IndexPath,
+	value: any,
+	index: number?,
+	NoReplication: boolean?
+)
+	assert(
+		self._network,
+		"[DataServiceServer] Networker has not been loaded yet. Please run DataServiceServer:Init()."
+	)
+	assert(
+		self._dataProfiles[player],
+		"[DataServiceServer] Player data not loaded yet. Possibly wait for initialization."
+	)
 
 	if not NoReplication then
-		self._network.ArrayInsert.Fire(player, {
-			Type = type(indexPath) == "table" and "Table" or "String",
-			value = indexPath,
-		} :: any, value, index)
+		self._network.ArrayInsert.Fire(
+			player,
+			{
+				Type = type(indexPath) == "table" and "Table" or "String",
+				value = indexPath,
+			} :: any,
+			value,
+			index
+		)
 	end
 
 	self._dataProfiles[player]:ArrayInsert(indexPath, value, index)
@@ -479,15 +537,31 @@ end
 	
 	Returns: The removed value, useful for moving items between arrays.
 ]]
-function DataServiceServer.ArrayRemove(self: DataServiceServer, player: Player, indexPath: IndexPath, index: number, NoReplication: boolean?): any
-	assert(self._network, "[DataServiceServer] Networker has not been loaded yet. Please run DataServiceServer:Init().")
-	assert(self._dataProfiles[player], "[DataServiceServer] Player data not loaded yet. Possibly wait for initialization.")
+function DataServiceServer.ArrayRemove(
+	self: DataServiceServer,
+	player: Player,
+	indexPath: IndexPath,
+	index: number,
+	NoReplication: boolean?
+): any
+	assert(
+		self._network,
+		"[DataServiceServer] Networker has not been loaded yet. Please run DataServiceServer:Init()."
+	)
+	assert(
+		self._dataProfiles[player],
+		"[DataServiceServer] Player data not loaded yet. Possibly wait for initialization."
+	)
 
 	if not NoReplication then
-		self._network.ArrayRemove.Fire(player, {
-			Type = type(indexPath) == "table" and "Table" or "String",
-			value = indexPath,
-		} :: any, index)
+		self._network.ArrayRemove.Fire(
+			player,
+			{
+				Type = type(indexPath) == "table" and "Table" or "String",
+				value = indexPath,
+			} :: any,
+			index
+		)
 	end
 
 	return self._dataProfiles[player]:ArrayRemove(indexPath, index)
@@ -507,8 +581,15 @@ end
 	end)
 	```
 ]]
-function DataServiceServer.GetValueChangedSignal(self: DataServiceServer, player: Player, indexPath: IndexPath): Signal.Signal<any>
-	assert(self._dataProfiles[player], "[DataServiceServer] Player data not loaded yet. Possibly wait for initialization.")
+function DataServiceServer.GetValueChangedSignal(
+	self: DataServiceServer,
+	player: Player,
+	indexPath: IndexPath
+): Signal.Signal<any>
+	assert(
+		self._dataProfiles[player],
+		"[DataServiceServer] Player data not loaded yet. Possibly wait for initialization."
+	)
 	return self._dataProfiles[player]:GetValueChangedSignal(indexPath)
 end
 
@@ -526,8 +607,15 @@ end
 	end)
 	```
 ]]
-function DataServiceServer.GetArrayInsertedSignal(self: DataServiceServer, player: Player, indexPath: IndexPath): Signal.Signal<any>
-	assert(self._dataProfiles[player], "[DataServiceServer] Player data not loaded yet. Possibly wait for initialization.")
+function DataServiceServer.GetArrayInsertedSignal(
+	self: DataServiceServer,
+	player: Player,
+	indexPath: IndexPath
+): Signal.Signal<any>
+	assert(
+		self._dataProfiles[player],
+		"[DataServiceServer] Player data not loaded yet. Possibly wait for initialization."
+	)
 	return self._dataProfiles[player]:GetArrayInsertedSignal(indexPath)
 end
 
@@ -545,8 +633,15 @@ end
 	end)
 	```
 ]]
-function DataServiceServer.GetArrayRemovedSignal(self: DataServiceServer, player: Player, indexPath: IndexPath): Signal.Signal<number, any>
-	assert(self._dataProfiles[player], "[DataServiceServer] Player data not loaded yet. Possibly wait for initialization.")
+function DataServiceServer.GetArrayRemovedSignal(
+	self: DataServiceServer,
+	player: Player,
+	indexPath: IndexPath
+): Signal.Signal<number, any>
+	assert(
+		self._dataProfiles[player],
+		"[DataServiceServer] Player data not loaded yet. Possibly wait for initialization."
+	)
 	return self._dataProfiles[player]:GetArrayRemovedSignal(indexPath)
 end
 
@@ -564,8 +659,15 @@ end
 	end)
 	```
 ]]
-function DataServiceServer.GetIndexChangedSignal(self: DataServiceServer, player: Player, indexPath: IndexPath): Signal.Signal<any>
-	assert(self._dataProfiles[player], "[DataServiceServer] Player data not loaded yet. Possibly wait for initialization.")
+function DataServiceServer.GetIndexChangedSignal(
+	self: DataServiceServer,
+	player: Player,
+	indexPath: IndexPath
+): Signal.Signal<any>
+	assert(
+		self._dataProfiles[player],
+		"[DataServiceServer] Player data not loaded yet. Possibly wait for initialization."
+	)
 	return self._dataProfiles[player]:GetChildChangedSignal(indexPath)
 end
 
@@ -595,8 +697,16 @@ end
 	disconnect()
 	```
 ]]
-function DataServiceServer.ObserveData(self: DataServiceServer, player: Player, indexPath: IndexPath, factory: (value: any) -> Disconnect): Disconnect
-	assert(self._dataProfiles[player], "[DataServiceServer] Player data not loaded yet. Possibly wait for initialization.")
+function DataServiceServer.ObserveData(
+	self: DataServiceServer,
+	player: Player,
+	indexPath: IndexPath,
+	factory: (value: any) -> Disconnect
+): Disconnect
+	assert(
+		self._dataProfiles[player],
+		"[DataServiceServer] Player data not loaded yet. Possibly wait for initialization."
+	)
 	return self._dataProfiles[player]:ObserveData(indexPath, factory)
 end
 
@@ -637,8 +747,17 @@ end
 	disconnect()
 	```
 ]]
-function DataServiceServer.ObserveTableData<K, V>(self: DataServiceServer, player: Player, indexPath: IndexPath, factory: (key: K, value: V) -> Disconnect?, monitorLastValue: boolean?): Disconnect
-	assert(self._dataProfiles[player], "[DataServiceServer] Player data not loaded yet. Possibly wait for initialization.")
+function DataServiceServer.ObserveTableData<K, V>(
+	self: DataServiceServer,
+	player: Player,
+	indexPath: IndexPath,
+	factory: (key: K, value: V) -> Disconnect?,
+	monitorLastValue: boolean?
+): Disconnect
+	assert(
+		self._dataProfiles[player],
+		"[DataServiceServer] Player data not loaded yet. Possibly wait for initialization."
+	)
 	return self._dataProfiles[player]:ObserveTableData(indexPath, factory, monitorLastValue)
 end
 
@@ -654,7 +773,9 @@ function DataServiceServer._playerAdded(self: DataServiceServer, player: Player)
 
 	local profile: Profile = if self.options.useMock
 		then (self.playerStore :: profileStore).Mock:StartSessionAsync(key, params) :: Profile
-		elseif self.options.dontSave then (self.playerStore :: profileStore):GetAsync(key) :: Profile
+		elseif self.options.dontSave then (self.playerStore :: profileStore):GetAsync(
+				key
+			) :: Profile
 		else (self.playerStore :: profileStore):StartSessionAsync(key, params) :: Profile
 
 	if not profile then
@@ -709,7 +830,8 @@ end
 function DataServiceServer._initializePlayer(self: DataServiceServer, player: Player, data: any): ()
 	self._dataProfiles[player] = DataProfile.new(data)
 
-	local replicationData = self.options.replicationIgnoreList == nil and data or Sift.Dictionary.copyDeep(data)
+	local replicationData = self.options.replicationIgnoreList == nil and data
+		or Sift.Dictionary.copyDeep(data)
 	if self.options.replicationIgnoreList then
 		for _, dataName in ipairs(self.options.replicationIgnoreList) do
 			replicationData[dataName] = nil

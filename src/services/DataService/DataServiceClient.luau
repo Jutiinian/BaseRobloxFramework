@@ -8,6 +8,7 @@
 	@version February 11, 2026
 ]]
 
+--!optimize 2
 --!strict
 
 -- || Services || --
@@ -56,7 +57,7 @@ export type DataServiceClient = typeof(DataServiceClient)
 ]]
 function DataServiceClient.Init(self: DataServiceClient)
 	self._network = require(script.Parent.NetworkClient)
-	
+
 	self._network.InitialDataSync.SetCallback(function(value)
 		if not value then
 			return
@@ -109,7 +110,10 @@ end
 	Note: This is a synchronous read from the local cache. Make sure data is loaded first using WaitForData() or WaitForDataAsync().
 ]]
 function DataServiceClient.Get(self: DataServiceClient, indexPath: IndexPath?): any
-	assert(self._data, "[DataServiceClient] Player data not loaded yet. Possibly wait for initialization.")
+	assert(
+		self._data,
+		"[DataServiceClient] Player data not loaded yet. Possibly wait for initialization."
+	)
 	return self._data:Get(indexPath)
 end
 
@@ -128,8 +132,14 @@ end
 	
 	Note: The signal will only fire when the server updates this value. Local changes are not possible on the client.
 ]]
-function DataServiceClient.GetValueChangedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.ClassicSignal<any>
-	assert(self._data, "[DataServiceClient] Player data not loaded yet. Possibly wait for initialization.")
+function DataServiceClient.GetValueChangedSignal(
+	self: DataServiceClient,
+	indexPath: IndexPath
+): Signal.ClassicSignal<any>
+	assert(
+		self._data,
+		"[DataServiceClient] Player data not loaded yet. Possibly wait for initialization."
+	)
 	return self._data:GetValueChangedSignal(indexPath)
 end
 
@@ -146,8 +156,14 @@ end
 	end)
 	```
 ]]
-function DataServiceClient.GetArrayInsertedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.ClassicSignal<number, any>
-	assert(self._data, "[DataServiceClient] Player data not loaded yet. Possibly wait for initialization.")
+function DataServiceClient.GetArrayInsertedSignal(
+	self: DataServiceClient,
+	indexPath: IndexPath
+): Signal.ClassicSignal<number, any>
+	assert(
+		self._data,
+		"[DataServiceClient] Player data not loaded yet. Possibly wait for initialization."
+	)
 	return self._data:GetArrayInsertedSignal(indexPath)
 end
 
@@ -164,8 +180,14 @@ end
 	end)
 	```
 ]]
-function DataServiceClient.GetArrayRemovedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.ClassicSignal<number, any>
-	assert(self._data, "[DataServiceClient] Player data not loaded yet. Possibly wait for initialization.")
+function DataServiceClient.GetArrayRemovedSignal(
+	self: DataServiceClient,
+	indexPath: IndexPath
+): Signal.ClassicSignal<number, any>
+	assert(
+		self._data,
+		"[DataServiceClient] Player data not loaded yet. Possibly wait for initialization."
+	)
 	return self._data:GetArrayRemovedSignal(indexPath)
 end
 
@@ -190,8 +212,14 @@ end
 	end)
 	```
 ]]
-function DataServiceClient.GetIndexChangedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.ClassicSignal<string, any>
-	assert(self._data, "[DataServiceClient] Player data not loaded yet. Possibly wait for initialization.")
+function DataServiceClient.GetIndexChangedSignal(
+	self: DataServiceClient,
+	indexPath: IndexPath
+): Signal.ClassicSignal<string, any>
+	assert(
+		self._data,
+		"[DataServiceClient] Player data not loaded yet. Possibly wait for initialization."
+	)
 	return self._data:GetChildChangedSignal(indexPath)
 end
 
@@ -220,8 +248,15 @@ end
 	disconnect()
 	```
 ]]
-function DataServiceClient.ObserveData(self: DataServiceClient, indexPath: IndexPath, factory: (value: any) -> Disconnect): Disconnect
-	assert(self._data, "[DataServiceClient] Player data not loaded yet. Possibly wait for initialization.")
+function DataServiceClient.ObserveData(
+	self: DataServiceClient,
+	indexPath: IndexPath,
+	factory: (value: any) -> Disconnect
+): Disconnect
+	assert(
+		self._data,
+		"[DataServiceClient] Player data not loaded yet. Possibly wait for initialization."
+	)
 	return self._data:ObserveData(indexPath, factory)
 end
 
@@ -261,8 +296,16 @@ end
 	disconnect()
 	```
 ]]
-function DataServiceClient.ObserveTableData<K, V>(self: DataServiceClient, indexPath: IndexPath, factory: (key: K, value: V) -> Disconnect?, monitorLastValue: boolean?): Disconnect
-	assert(self._data, "[DataServiceClient] Player data not loaded yet. Possibly wait for initialization.")
+function DataServiceClient.ObserveTableData<K, V>(
+	self: DataServiceClient,
+	indexPath: IndexPath,
+	factory: (key: K, value: V) -> Disconnect?,
+	monitorLastValue: boolean?
+): Disconnect
+	assert(
+		self._data,
+		"[DataServiceClient] Player data not loaded yet. Possibly wait for initialization."
+	)
 	return self._data:ObserveTableData(indexPath, factory, monitorLastValue)
 end
 
@@ -321,7 +364,9 @@ end
 	- Better error handling with catch()
 	- Can be canceled or timed out
 ]]
-function DataServiceClient.WaitForDataAsync(self: DataServiceClient): Promise.TypedPromise<dataProfile>
+function DataServiceClient.WaitForDataAsync(
+	self: DataServiceClient
+): Promise.TypedPromise<dataProfile>
 	local data = self._data
 	if data then
 		return Promise.resolve(data)
