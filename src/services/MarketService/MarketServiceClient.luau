@@ -1,3 +1,15 @@
+--[[
+	MarketServiceClient
+	
+	Client-side marketplace service that handles gamepass and developer product purchases, ownership tracking, gifting,
+	and purchase events. Provides promise-based helpers and signals for reacting to marketplace activity.
+	
+	@author Jutiinian
+	@version February 11, 2026
+]]
+
+--!strict
+
 -- || Services || --
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
@@ -23,12 +35,12 @@ local MarketServiceClient = {
 	_network = nil :: MarketServiceNetwork?,
 	_ownershipCache = {} :: { [string]: boolean },
 	
-	GamepassPurchased = nil :: Signal.Signal<string>?,      -- Fires when a gamepass is purchased
-	DevProductPurchased = nil :: Signal.Signal<string>?,    -- Fires when a dev product is purchased
-	GamepassOwnershipChanged = nil :: Signal.Signal<string, boolean>?, -- Fires when ownership status changes
+	GamepassPurchased = (nil :: any) :: Signal.ClassicSignal<string>,      -- Fires when a gamepass is purchased
+	DevProductPurchased = (nil :: any) :: Signal.ClassicSignal<string>,    -- Fires when a dev product is purchased
+	GamepassOwnershipChanged = (nil :: any) :: Signal.ClassicSignal<string, boolean>, -- Fires when ownership status changes
 	
 	_initialized = false :: boolean,
-	_initializedSignal = nil :: Signal.ClassicSignal<>?,
+	_initializedSignal = (nil :: any) :: Signal.ClassicSignal<>,
 }
 
 export type MarketServiceClient = typeof(MarketServiceClient)
@@ -140,13 +152,16 @@ end
 	- Better error handling
 ]]
 function MarketServiceClient.PlayerOwnsGamepassAsync(self: MarketServiceClient, passID: number, timeout: number?): Promise.TypedPromise<boolean>
+	assert(self._initialized, "[MarketServiceClient] Please initialize the market service by running MarketServiceClient:Init().")
+
 	local key = tostring(passID)
 
 	return Promise.try(function()
 		if not self._initialized then
 			return Promise.fromEvent(self._initializedSignal)
 		end
-		return true
+
+		return true :: any
 	end):andThen(function()
 		local cached = self._ownershipCache[key]
 		if cached ~= nil then
@@ -154,7 +169,7 @@ function MarketServiceClient.PlayerOwnsGamepassAsync(self: MarketServiceClient, 
 		end
 		
 		return Promise.race({
-			Promise.fromEvent(self.GamepassOwnershipChanged, function(id)
+			Promise.fromEvent(self.GamepassOwnershipChanged :: any, function(id)
 				return id == key
 			end):andThen(function(_, owns)
 				return owns

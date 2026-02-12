@@ -1,3 +1,15 @@
+--[[
+	MarketServiceServer
+	
+	Server-side marketplace service that handles gamepass and developer product purchases, ownership tracking, gifting,
+	receipt processing, and purchase events. Provides promise-based helpers and signals for reacting to marketplace activity.
+	
+	@author Justin Dinh
+	@version February 11, 2026
+]]
+
+--!strict
+
 -- || Services || --
 local DataStoreService = game:GetService("DataStoreService")
 local MarketplaceService = game:GetService("MarketplaceService")
@@ -19,6 +31,7 @@ local DEFAULT_RECEIPT_STORE_KEY = "ProcessedReceipts"
 local DEFAULT_PROFILE_STORE_INDEX = "DefaultMarketStore"
 
 -- || Types || --
+type marketStore = ProfileStore.ProfileStore<{ [string]: boolean }>
 type Profile = ProfileStore.Profile<{ [string]: boolean }>
 
 type InitOptions = {
@@ -54,18 +67,18 @@ end
 type MarketServiceNetwork = typeof(require(script.Parent.NetworkServer))
 
 local MarketServiceServer = {
-	marketStore = nil :: ProfileStore.ProfileStore<{ [number]: boolean }>?,
+	marketStore = (nil :: any) :: marketStore,
 	
-	GamepassPurchased = nil :: Signal.Signal<Player, string>?,    -- Fires when a player purchases a gamepass
-	DevProductPurchased = nil :: Signal.Signal<Player, string>?,  -- Fires when a player purchases a dev product
+	GamepassPurchased = (nil :: any) :: Signal.ClassicSignal<Player, string>,    -- Fires when a player purchases a gamepass
+	DevProductPurchased = (nil :: any) :: Signal.ClassicSignal<Player, string>,  -- Fires when a player purchases a dev product
 	
 	_network = nil :: MarketServiceNetwork?,
 	_receiptFunction = nil :: ReceiptFunction?,
-	_receiptStore = nil :: DataStore?,
+	_receiptStore = (nil :: any) :: DataStore,
 	
 	_activeGifts = {} :: { [number]: GiftData },
 	_activeProfiles = {} :: { [Player]: Profile },
-	_waitSignals = {} :: { [Player]: Signal.Signal<any> },
+	_waitSignals = {} :: { [Player]: Signal.ClassicSignal<Profile> },
 }
 
 export type MarketServiceServer = typeof(MarketServiceServer)
@@ -167,7 +180,7 @@ function MarketServiceServer.PlayerOwnsGamepass(self: MarketServiceServer, playe
 	
 	-- Check cached data first
 	local profile = self._activeProfiles[player]
-	if profile and profile.Data and profile.Data[passIDKey] == true then
+	if profile and profile.Data and (profile.Data :: any)[passIDKey] == true then
 		return true
 	end
 	
@@ -183,7 +196,7 @@ function MarketServiceServer.PlayerOwnsGamepass(self: MarketServiceServer, playe
 	
 	-- Cache the result if owned
 	if owns and profile and profile.Data then
-		profile.Data[passIDKey] = true
+		(profile.Data :: any)[passIDKey] = true
 		if self._network then
 			self._network.SetMarketData.Fire(player, passIDKey, true)
 		end
@@ -544,6 +557,8 @@ function MarketServiceServer._ProcessReceipt(
 	self: MarketServiceServer,
 	receiptInfo: ReceiptInfo
 ): Enum.ProductPurchaseDecision
+	assert(self._receiptStore, "[MarketServiceServer] Attempting to process receipt but seems that _receiptStore does not exist. Please run MarketServiceServer:Init().")
+
 	local player = Players:GetPlayerByUserId(receiptInfo.PlayerId)
 	if not player then
 		return Enum.ProductPurchaseDecision.NotProcessedYet
@@ -619,10 +634,13 @@ function MarketServiceServer._GrantGamepass(self: MarketServiceServer, player: P
 	local profile = self._activeProfiles[player]
 	if profile and profile.Data then
 		local passIDKey = getPassIDKey(passID)
-		profile.Data[passIDKey] = true
+		local data = profile.Data :: { [string]: boolean }
+		data[passIDKey] = true
 		
 		if self._network then
 			self._network.SetMarketData.Fire(player, passIDKey, true)
+		else
+			warn("[MarketServiceServer] Attempted to sync client data but _network does not yet exist. Forget to call MarketServiceServer:Init()?")
 		end
 	end
 	
@@ -654,9 +672,7 @@ function MarketServiceServer._BindMarketEvents(self: MarketServiceServer)
 end
 
 function MarketServiceServer._BindNetworkEvents(self: MarketServiceServer)
-	if not self._network then
-		return
-	end
+	assert(self._network, "[MarketServiceServer] Attempting to run _BindNetworkEvents while _network does not exist.")
 	
 	self._network.RequestGiftPurchase.SetCallback(function(player: Player, recipient: string, productID: string): boolean
 		local recipientID = tonumber(recipient)
@@ -709,15 +725,11 @@ function MarketServiceServer._OnPlayerAdded(self: MarketServiceServer, player: P
 			return player.Parent ~= Players
 		end,
 	}
-	
-	local profile: Profile
-	if options and options.useMock then
-		profile = self.marketStore.Mock:StartSessionAsync(key, params)
-	elseif options and options.dontSave then
-		profile = self.marketStore:GetAsync(key)
-	else
-		profile = self.marketStore:StartSessionAsync(key, params)
-	end
+
+	local profile = if options and options.useMock
+		then (self.marketStore :: marketStore).Mock:StartSessionAsync(key, params) :: Profile
+		elseif options and options.dontSave then (self.marketStore :: marketStore):GetAsync(key) :: Profile
+		else (self.marketStore :: marketStore):StartSessionAsync(key, params) :: Profile
 	
 	if not profile then
 		warn(`{player.Name}'s market profile failed to load!`)
