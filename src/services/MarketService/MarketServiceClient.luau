@@ -8,6 +8,7 @@
 	@version February 11, 2026
 ]]
 
+--!optimize 2
 --!strict
 
 -- || Services || --
@@ -34,11 +35,11 @@ type MarketServiceNetwork = typeof(require(script.Parent.NetworkClient))
 local MarketServiceClient = {
 	_network = nil :: MarketServiceNetwork?,
 	_ownershipCache = {} :: { [string]: boolean },
-	
-	GamepassPurchased = (nil :: any) :: Signal.ClassicSignal<string>,      -- Fires when a gamepass is purchased
-	DevProductPurchased = (nil :: any) :: Signal.ClassicSignal<string>,    -- Fires when a dev product is purchased
+
+	GamepassPurchased = (nil :: any) :: Signal.ClassicSignal<string>, -- Fires when a gamepass is purchased
+	DevProductPurchased = (nil :: any) :: Signal.ClassicSignal<string>, -- Fires when a dev product is purchased
 	GamepassOwnershipChanged = (nil :: any) :: Signal.ClassicSignal<string, boolean>, -- Fires when ownership status changes
-	
+
 	_initialized = false :: boolean,
 	_initializedSignal = (nil :: any) :: Signal.ClassicSignal<>,
 }
@@ -68,14 +69,14 @@ function MarketServiceClient.Init(self: MarketServiceClient)
 		warn("MarketServiceClient already initialized")
 		return
 	end
-	
+
 	self._network = require(script.Parent.NetworkClient)
 	self._initializedSignal = Signal.new()
-	
+
 	self.GamepassPurchased = Signal.new()
 	self.DevProductPurchased = Signal.new()
 	self.GamepassOwnershipChanged = Signal.new()
-	
+
 	self:_BindNetworkEvents()
 	self:_BindMarketEvents()
 end
@@ -103,21 +104,21 @@ end
 ]]
 function MarketServiceClient.PlayerOwnsGamepass(self: MarketServiceClient, passID: number): boolean
 	local key = tostring(passID)
-	
+
 	local cached = self._ownershipCache[key]
 	if cached ~= nil then
 		return cached
 	end
-	
+
 	local success, owns = pcall(function()
 		return MarketplaceService:UserOwnsGamePassAsync(Player.UserId, passID)
 	end)
-	
+
 	if not success then
 		warn(`Failed to check gamepass ownership: {owns}`)
 		return false
 	end
-	
+
 	self._ownershipCache[key] = owns
 	return owns
 end
@@ -151,8 +152,15 @@ end
 	- Can specify custom timeout
 	- Better error handling
 ]]
-function MarketServiceClient.PlayerOwnsGamepassAsync(self: MarketServiceClient, passID: number, timeout: number?): Promise.TypedPromise<boolean>
-	assert(self._initialized, "[MarketServiceClient] Please initialize the market service by running MarketServiceClient:Init().")
+function MarketServiceClient.PlayerOwnsGamepassAsync(
+	self: MarketServiceClient,
+	passID: number,
+	timeout: number?
+): Promise.TypedPromise<boolean>
+	assert(
+		self._initialized,
+		"[MarketServiceClient] Please initialize the market service by running MarketServiceClient:Init()."
+	)
 
 	local key = tostring(passID)
 
@@ -167,14 +175,14 @@ function MarketServiceClient.PlayerOwnsGamepassAsync(self: MarketServiceClient, 
 		if cached ~= nil then
 			return Promise.resolve(cached)
 		end
-		
+
 		return Promise.race({
 			Promise.fromEvent(self.GamepassOwnershipChanged :: any, function(id)
 				return id == key
 			end):andThen(function(_, owns)
 				return owns
 			end),
-			
+
 			Promise.delay(timeout or DEFAULT_OWNERSHIP_TIMEOUT):andThen(function()
 				return Promise.reject("Timed out waiting for gamepass ownership")
 			end),
@@ -204,7 +212,11 @@ end
 	end)
 	```
 ]]
-function MarketServiceClient.GetProductPriceAsync(_self: MarketServiceClient, productId: number, isGamepass: boolean): Promise.TypedPromise<number>
+function MarketServiceClient.GetProductPriceAsync(
+	_self: MarketServiceClient,
+	productId: number,
+	isGamepass: boolean
+): Promise.TypedPromise<number>
 	local infoType = isGamepass and Enum.InfoType.GamePass or Enum.InfoType.Product
 	return MarketServiceUtils.FetchProductPriceAsync(productId, infoType)
 end
@@ -233,7 +245,10 @@ end
 	Note: The promise resolves true ONLY if the purchase completed successfully.
 	It resolves false if declined, and rejects if there's an error.
 ]]
-function MarketServiceClient.PromptGamePassAsync(_self: MarketServiceClient, passID: number): Promise.TypedPromise<boolean>
+function MarketServiceClient.PromptGamePassAsync(
+	_self: MarketServiceClient,
+	passID: number
+): Promise.TypedPromise<boolean>
 	return MarketServiceUtils.PromptAsync(Player, passID, true)
 end
 
@@ -259,7 +274,10 @@ end
 	Note: The server's ProcessReceipt callback handles actually granting the product.
 	This just initiates the purchase flow.
 ]]
-function MarketServiceClient.PromptDevProductAsync(_self: MarketServiceClient, productID: number): Promise.TypedPromise<boolean>
+function MarketServiceClient.PromptDevProductAsync(
+	_self: MarketServiceClient,
+	productID: number
+): Promise.TypedPromise<boolean>
 	return MarketServiceUtils.PromptAsync(Player, productID, false)
 end
 
@@ -298,16 +316,21 @@ end
 	
 	Note: The server must have gift handling set up in ProcessReceipt.
 ]]
-function MarketServiceClient.PromptGiftDevProductAsync(self: MarketServiceClient, recipient: Player, productID: number): Promise.TypedPromise<boolean>
+function MarketServiceClient.PromptGiftDevProductAsync(
+	self: MarketServiceClient,
+	recipient: Player,
+	productID: number
+): Promise.TypedPromise<boolean>
 	if not recipient or not recipient:IsDescendantOf(Players) then
 		return Promise.reject("Recipient is not in the game")
 	end
-	
+
 	if not self._network then
 		return Promise.reject("MarketService not initialized")
 	end
-	
-	return self._network.RequestGiftPurchase.Call(tostring(recipient.UserId), tostring(productID))
+
+	return self._network.RequestGiftPurchase
+		.Call(tostring(recipient.UserId), tostring(productID))
 		:andThen(function(accepted)
 			if not accepted then
 				return Promise.reject("Server rejected gift request")
@@ -352,26 +375,31 @@ end
 	- "Gamepass has no gift Dev Product" - No GiftID configured
 	- "Server rejected gift request" - Server validation failed
 ]]
-function MarketServiceClient.PromptGiftGamepassAsync(self: MarketServiceClient, recipient: Player, passID: number): Promise.TypedPromise<boolean>
+function MarketServiceClient.PromptGiftGamepassAsync(
+	self: MarketServiceClient,
+	recipient: Player,
+	passID: number
+): Promise.TypedPromise<boolean>
 	if not recipient or not recipient:IsDescendantOf(Players) then
 		return Promise.reject("Recipient is not in the game")
 	end
-	
+
 	local passKey = ProductRegistry:GetGamePassKeyFromId(passID)
 	if not passKey then
 		return Promise.reject("Invalid gamepass ID")
 	end
-	
+
 	local giftProductID = ProductRegistry.GamePasses[passKey].GiftID
 	if not giftProductID then
 		return Promise.reject("Gamepass has no gift Dev Product")
 	end
-	
+
 	if not self._network then
 		return Promise.reject("MarketService not initialized")
 	end
-	
-	return self._network.RequestGiftPurchase.Call(tostring(recipient.UserId), tostring(passID))
+
+	return self._network.RequestGiftPurchase
+		.Call(tostring(recipient.UserId), tostring(passID))
 		:andThen(function(accepted)
 			if not accepted then
 				return Promise.reject("Server rejected gift request")
@@ -397,26 +425,28 @@ end
 	MarketServiceClient:PromptGamePassAsync(productId)
 	```
 ]]
-MarketServiceClient.GetProductID = MarketServiceUtils.GetProductID :: (
-self: MarketServiceClient,
-	productName: string
-) -> number?
+MarketServiceClient.GetProductID =
+	MarketServiceUtils.GetProductID :: (self: MarketServiceClient, productName: string) -> number?
 
 -------------------------------------------------------------------------------------------------------------------------------
 -- Private Methods
 
-function MarketServiceClient._SetOwnership(self: MarketServiceClient, passKey: string, owns: boolean)
+function MarketServiceClient._SetOwnership(
+	self: MarketServiceClient,
+	passKey: string,
+	owns: boolean
+)
 	local current = self._ownershipCache[passKey]
 	if current == owns then
 		return
 	end
-	
+
 	self._ownershipCache[passKey] = owns
-	
+
 	if self.GamepassOwnershipChanged then
 		self.GamepassOwnershipChanged:Fire(passKey, owns)
 	end
-	
+
 	if owns and self.GamepassPurchased then
 		self.GamepassPurchased:FireDeferred(passKey)
 	end
@@ -427,13 +457,13 @@ function MarketServiceClient._BindNetworkEvents(self: MarketServiceClient)
 		warn("Network not initialized")
 		return
 	end
-	
+
 	-- Initial ownership data from server
 	self._network.InitializeMarketData.SetCallback(function(data)
 		for passKey, owns in pairs(data) do
 			self:_SetOwnership(passKey, owns)
 		end
-		
+
 		if not self._initialized then
 			self._initialized = true
 			if self._initializedSignal then
@@ -441,7 +471,7 @@ function MarketServiceClient._BindNetworkEvents(self: MarketServiceClient)
 			end
 		end
 	end)
-	
+
 	-- Ownership updates from server
 	self._network.SetMarketData.SetCallback(function(passKey, owns)
 		self:_SetOwnership(passKey, owns)
@@ -450,29 +480,33 @@ end
 
 function MarketServiceClient._BindMarketEvents(self: MarketServiceClient)
 	-- Listen for gamepass purchases
-	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player: Player, passID: number, wasPurchased: boolean)
-		if player ~= Player then
-			return
-		end
-		
-		if wasPurchased then
-			self:_SetOwnership(tostring(passID), true)
-		end
-	end)
-	
-	-- Listen for dev product purchases
-	MarketplaceService.PromptProductPurchaseFinished:Connect(function(userID: number, productID: number, wasPurchased: boolean)
-		if userID ~= Player.UserId then
-			return
-		end
-		
-		if wasPurchased then
-			local key = ProductRegistry:GetDevProductKeyFromId(productID)
-			if key and self.DevProductPurchased then
-				self.DevProductPurchased:FireDeferred(key)
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(
+		function(player: Player, passID: number, wasPurchased: boolean)
+			if player ~= Player then
+				return
+			end
+
+			if wasPurchased then
+				self:_SetOwnership(tostring(passID), true)
 			end
 		end
-	end)
+	)
+
+	-- Listen for dev product purchases
+	MarketplaceService.PromptProductPurchaseFinished:Connect(
+		function(userID: number, productID: number, wasPurchased: boolean)
+			if userID ~= Player.UserId then
+				return
+			end
+
+			if wasPurchased then
+				local key = ProductRegistry:GetDevProductKeyFromId(productID)
+				if key and self.DevProductPurchased then
+					self.DevProductPurchased:FireDeferred(key)
+				end
+			end
+		end
+	)
 end
 
 return MarketServiceClient

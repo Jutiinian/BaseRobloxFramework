@@ -8,6 +8,7 @@
 	@version February 11, 2026
 ]]
 
+--!optimize 2
 --!strict
 
 -- || Services || --
@@ -18,8 +19,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 -- || Dependencies || --
-local ProfileStore = require(ServerScriptService.ServerPackages.profilestore)
 local Observers = require(ReplicatedStorage.Packages.observers)
+local ProfileStore = require(ServerScriptService.ServerPackages.profilestore)
 local Promise = require(ReplicatedStorage.Packages.promise)
 local Signal = require(ReplicatedStorage.Packages.signal)
 
@@ -35,26 +36,31 @@ type marketStore = ProfileStore.ProfileStore<{ [string]: boolean }>
 type Profile = ProfileStore.Profile<{ [string]: boolean }>
 
 type InitOptions = {
-	receiptStoreKey: string?,      -- DataStore key for tracking processed receipts
-	profileStoreIndex: string?,    -- ProfileStore index for gamepass ownership
-	useMock: boolean?,             -- Use mock ProfileStore (for testing)
-	dontSave: boolean?,            -- Don't save data (read-only mode)
-	overridenUserId: number?,      -- Override UserId for testing
+	receiptStoreKey: string?, -- DataStore key for tracking processed receipts
+	profileStoreIndex: string?, -- ProfileStore index for gamepass ownership
+	useMock: boolean?, -- Use mock ProfileStore (for testing)
+	dontSave: boolean?, -- Don't save data (read-only mode)
+	overridenUserId: number?, -- Override UserId for testing
 }
 
-type ReceiptInfo = { 
-	PlayerId: number,         -- UserId who made the purchase
-	ProductId: number,        -- The product ID purchased
-	PurchaseId: string,       -- Unique ID for this transaction
-	[string]: any             -- Additional Roblox receipt data
+type ReceiptInfo = {
+	PlayerId: number, -- UserId who made the purchase
+	ProductId: number, -- The product ID purchased
+	PurchaseId: string, -- Unique ID for this transaction
+	[string]: any, -- Additional Roblox receipt data
 }
 
-type ReceiptFunction = (player: Player, key: string, receiptInfo: ReceiptInfo, purchaser: Player) -> boolean
+type ReceiptFunction = (
+	player: Player,
+	key: string,
+	receiptInfo: ReceiptInfo,
+	purchaser: Player
+) -> boolean
 
 type GiftData = {
-	PurchaserID: number,      -- Who is buying the gift
-	RecipientID: number,      -- Who receives it
-	ProductID: number,        -- What product is being gifted
+	PurchaserID: number, -- Who is buying the gift
+	RecipientID: number, -- Who receives it
+	ProductID: number, -- What product is being gifted
 	IsGamepassGift: boolean?, -- True if it's a gamepass gift
 }
 
@@ -68,14 +74,14 @@ type MarketServiceNetwork = typeof(require(script.Parent.NetworkServer))
 
 local MarketServiceServer = {
 	marketStore = (nil :: any) :: marketStore,
-	
-	GamepassPurchased = (nil :: any) :: Signal.ClassicSignal<Player, string>,    -- Fires when a player purchases a gamepass
-	DevProductPurchased = (nil :: any) :: Signal.ClassicSignal<Player, string>,  -- Fires when a player purchases a dev product
-	
+
+	GamepassPurchased = (nil :: any) :: Signal.ClassicSignal<Player, string>, -- Fires when a player purchases a gamepass
+	DevProductPurchased = (nil :: any) :: Signal.ClassicSignal<Player, string>, -- Fires when a player purchases a dev product
+
 	_network = nil :: MarketServiceNetwork?,
 	_receiptFunction = nil :: ReceiptFunction?,
 	_receiptStore = (nil :: any) :: DataStore,
-	
+
 	_activeGifts = {} :: { [number]: GiftData },
 	_activeProfiles = {} :: { [Player]: Profile },
 	_waitSignals = {} :: { [Player]: Signal.ClassicSignal<Profile> },
@@ -114,28 +120,27 @@ export type MarketServiceServer = typeof(MarketServiceServer)
 ]]
 function MarketServiceServer.Init(self: MarketServiceServer, options: InitOptions?)
 	self._network = require(script.Parent.NetworkServer)
-	
+
 	self.GamepassPurchased = Signal.new()
 	self.DevProductPurchased = Signal.new()
-	
-	self.marketStore = ProfileStore.New(
-		options and options.profileStoreIndex or DEFAULT_PROFILE_STORE_INDEX
-	)
+
+	self.marketStore =
+		ProfileStore.New(options and options.profileStoreIndex or DEFAULT_PROFILE_STORE_INDEX)
 	self._receiptStore = DataStoreService:GetDataStore(
 		options and options.receiptStoreKey or DEFAULT_RECEIPT_STORE_KEY
 	)
-	
+
 	self:_BindMarketEvents()
 	self:_BindNetworkEvents()
-	
+
 	Observers.observePlayer(function(player: Player)
 		task.spawn(function()
 			self:_OnPlayerAdded(player, options)
-			
+
 			if not player:IsDescendantOf(Players) then
 				return
 			end
-			
+
 			-- Fire signals for owned gamepasses
 			for key, passData in pairs(ProductRegistry.GamePasses) do
 				local passID = passData.ID
@@ -144,7 +149,7 @@ function MarketServiceServer.Init(self: MarketServiceServer, options: InitOption
 				end
 			end
 		end)
-		
+
 		return function()
 			self:_OnPlayerRemoved(player)
 		end
@@ -175,25 +180,29 @@ end
 	Note: Makes a web request on first check. Use PlayerOwnsGamepassAsync() for
 	promise-based async checking with better error handling.
 ]]
-function MarketServiceServer.PlayerOwnsGamepass(self: MarketServiceServer, player: Player, passID: number): boolean
+function MarketServiceServer.PlayerOwnsGamepass(
+	self: MarketServiceServer,
+	player: Player,
+	passID: number
+): boolean
 	local passIDKey = getPassIDKey(passID)
-	
+
 	-- Check cached data first
 	local profile = self._activeProfiles[player]
 	if profile and profile.Data and (profile.Data :: any)[passIDKey] == true then
 		return true
 	end
-	
+
 	-- Query Roblox API
 	local success, owns = pcall(function()
 		return MarketplaceService:UserOwnsGamePassAsync(player.UserId, passID)
 	end)
-	
+
 	if not success then
 		warn(`Failed to check gamepass ownership for {player.Name}: {owns}`)
 		return false
 	end
-	
+
 	-- Cache the result if owned
 	if owns and profile and profile.Data then
 		(profile.Data :: any)[passIDKey] = true
@@ -201,7 +210,7 @@ function MarketServiceServer.PlayerOwnsGamepass(self: MarketServiceServer, playe
 			self._network.SetMarketData.Fire(player, passIDKey, true)
 		end
 	end
-	
+
 	return owns
 end
 
@@ -227,7 +236,11 @@ end
 	- Rejects if player leaves
 	- Better error handling
 ]]
-function MarketServiceServer.PlayerOwnsGamepassAsync(self: MarketServiceServer, player: Player, passID: number): Promise.TypedPromise<boolean>
+function MarketServiceServer.PlayerOwnsGamepassAsync(
+	self: MarketServiceServer,
+	player: Player,
+	passID: number
+): Promise.TypedPromise<boolean>
 	return self:WaitForDataAsync(player):andThen(function()
 		return self:PlayerOwnsGamepass(player, passID)
 	end)
@@ -249,7 +262,11 @@ end
 	end)
 	```
 ]]
-function MarketServiceServer.GetProductPriceAsync(_self: MarketServiceServer, productId: number, isGamepass: boolean): Promise.TypedPromise<number>
+function MarketServiceServer.GetProductPriceAsync(
+	_self: MarketServiceServer,
+	productId: number,
+	isGamepass: boolean
+): Promise.TypedPromise<number>
 	local infoType = isGamepass and Enum.InfoType.GamePass or Enum.InfoType.Product
 	return MarketServiceUtils.FetchProductPriceAsync(productId, infoType)
 end
@@ -272,7 +289,11 @@ end
 	end):catch(warn)
 	```
 ]]
-function MarketServiceServer.PromptGamePassAsync(_self: MarketServiceServer, player: Player, passID: number): Promise.TypedPromise<boolean>
+function MarketServiceServer.PromptGamePassAsync(
+	_self: MarketServiceServer,
+	player: Player,
+	passID: number
+): Promise.TypedPromise<boolean>
 	return MarketServiceUtils.PromptAsync(player, passID, true)
 end
 
@@ -296,7 +317,11 @@ end
 	
 	Note: The actual granting happens in your BindReceiptFunction callback.
 ]]
-function MarketServiceServer.PromptDevProductAsync(_self: MarketServiceServer, player: Player, productID: number): Promise.TypedPromise<boolean>
+function MarketServiceServer.PromptDevProductAsync(
+	_self: MarketServiceServer,
+	player: Player,
+	productID: number
+): Promise.TypedPromise<boolean>
 	return MarketServiceUtils.PromptAsync(player, productID, false)
 end
 
@@ -345,13 +370,13 @@ function MarketServiceServer.PromptGiftDevProductAsync(
 	if not recipient or not recipient:IsDescendantOf(Players) then
 		return Promise.reject("Recipient is not in the game")
 	end
-	
+
 	self._activeGifts[purchaser.UserId] = {
 		PurchaserID = purchaser.UserId,
 		RecipientID = recipient.UserId,
 		ProductID = productID,
 	}
-	
+
 	return MarketServiceUtils.PromptAsync(purchaser, productID, false):catch(function(err)
 		self._activeGifts[purchaser.UserId] = nil
 		return Promise.reject(err)
@@ -400,28 +425,33 @@ end
 	3. Prompts the gift dev product purchase
 	4. ProcessReceipt sees IsGamepassGift and grants the actual gamepass to recipient
 ]]
-function MarketServiceServer.PromptGiftGamepassAsync(self: MarketServiceServer, purchaser: Player, recipient: Player, passID: number): Promise.TypedPromise<boolean>
+function MarketServiceServer.PromptGiftGamepassAsync(
+	self: MarketServiceServer,
+	purchaser: Player,
+	recipient: Player,
+	passID: number
+): Promise.TypedPromise<boolean>
 	if not recipient or not recipient:IsDescendantOf(Players) then
 		return Promise.reject("Recipient is not in the game")
 	end
-	
+
 	local gamepassKey = ProductRegistry:GetGamePassKeyFromId(passID)
 	if not gamepassKey then
 		return Promise.reject("Invalid gamepass ID")
 	end
-	
+
 	local giftDevProductID = ProductRegistry.GamePasses[gamepassKey].GiftID
 	if not giftDevProductID then
 		return Promise.reject("No gift Dev Product associated with this gamepass")
 	end
-	
+
 	self._activeGifts[purchaser.UserId] = {
 		PurchaserID = purchaser.UserId,
 		RecipientID = recipient.UserId,
 		ProductID = giftDevProductID,
 		IsGamepassGift = true,
 	}
-	
+
 	return MarketServiceUtils.PromptAsync(purchaser, giftDevProductID, false):catch(function(err)
 		self._activeGifts[purchaser.UserId] = nil
 		return Promise.reject(err)
@@ -446,23 +476,26 @@ end
 	end)
 	```
 ]]
-function MarketServiceServer.WaitForDataAsync(self: MarketServiceServer, player: Player): Promise.TypedPromise<Profile>
+function MarketServiceServer.WaitForDataAsync(
+	self: MarketServiceServer,
+	player: Player
+): Promise.TypedPromise<Profile>
 	local profile = self._activeProfiles[player]
 	if profile then
 		return Promise.resolve(profile)
 	end
-	
+
 	local waitSignal = self._waitSignals[player]
 	if not waitSignal then
 		waitSignal = Signal.new()
 		self._waitSignals[player] = waitSignal
 	end
-	
+
 	return Promise.race({
 		Promise.fromEvent(waitSignal, function(receivedProfile)
 			return receivedProfile ~= nil
 		end),
-		
+
 		Promise.fromEvent(Players.PlayerRemoving, function(leavingPlayer)
 			return leavingPlayer == player
 		end):andThen(function()
@@ -545,10 +578,8 @@ end
 	MarketServiceServer:PromptGamePassAsync(player, productId)
 	```
 ]]
-MarketServiceServer.GetProductID = MarketServiceUtils.GetProductID :: (
-	self: MarketServiceServer,
-	productName: string
-) -> number?
+MarketServiceServer.GetProductID =
+	MarketServiceUtils.GetProductID :: (self: MarketServiceServer, productName: string) -> number?
 
 -------------------------------------------------------------------------------------------------------------------------------
 -- Private Service Functions
@@ -557,7 +588,10 @@ function MarketServiceServer._ProcessReceipt(
 	self: MarketServiceServer,
 	receiptInfo: ReceiptInfo
 ): Enum.ProductPurchaseDecision
-	assert(self._receiptStore, "[MarketServiceServer] Attempting to process receipt but seems that _receiptStore does not exist. Please run MarketServiceServer:Init().")
+	assert(
+		self._receiptStore,
+		"[MarketServiceServer] Attempting to process receipt but seems that _receiptStore does not exist. Please run MarketServiceServer:Init()."
+	)
 
 	local player = Players:GetPlayerByUserId(receiptInfo.PlayerId)
 	if not player then
@@ -566,7 +600,7 @@ function MarketServiceServer._ProcessReceipt(
 
 	local key = ProductRegistry:GetDevProductKeyFromId(receiptInfo.ProductId)
 		or ProductRegistry:GetGamePassKeyFromGiftId(receiptInfo.ProductId)
-	
+
 	if not key then
 		warn(`Unknown product: {receiptInfo.ProductId}`)
 		return Enum.ProductPurchaseDecision.NotProcessedYet
@@ -575,7 +609,7 @@ function MarketServiceServer._ProcessReceipt(
 	local giftData = self._activeGifts[player.UserId]
 	local recipient: Player = player
 	local isGamepassGift = false
-	
+
 	if giftData and giftData.ProductID == receiptInfo.ProductId then
 		recipient = Players:GetPlayerByUserId(giftData.RecipientID) or player
 		isGamepassGift = giftData.IsGamepassGift or false
@@ -587,21 +621,18 @@ function MarketServiceServer._ProcessReceipt(
 			if isPurchased then
 				return true
 			end
-			
+
 			if self._receiptFunction then
-				local receiptFunctionSuccess, receiptFunctionResult = pcall(
-					self._receiptFunction,
-					recipient,
-					key,
-					receiptInfo,
-					player
-				)
-				
+				local receiptFunctionSuccess, receiptFunctionResult =
+					pcall(self._receiptFunction, recipient, key, receiptInfo, player)
+
 				if not receiptFunctionSuccess then
-					warn(`Receipt function errored for {player.Name} product {receiptInfo.ProductId}: {receiptFunctionResult}`)
+					warn(
+						`Receipt function errored for {player.Name} product {receiptInfo.ProductId}: {receiptFunctionResult}`
+					)
 					return nil
 				end
-				
+
 				if receiptFunctionResult ~= true then
 					return nil
 				end
@@ -611,39 +642,45 @@ function MarketServiceServer._ProcessReceipt(
 				local gamepassID = ProductRegistry.GamePasses[key].ID
 				self:_GrantGamepass(recipient, gamepassID)
 			end
-			
+
 			return true
 		end)
 	end)
-	
+
 	if not success then
 		warn(`Failed to process receipt due to data store error: {result}`)
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
-	
+
 	if result == true and self.DevProductPurchased then
 		self.DevProductPurchased:Fire(player, key)
 	end
-	
+
 	return if result == true
 		then Enum.ProductPurchaseDecision.PurchaseGranted
 		else Enum.ProductPurchaseDecision.NotProcessedYet
 end
 
-function MarketServiceServer._GrantGamepass(self: MarketServiceServer, player: Player, passID: number)
+function MarketServiceServer._GrantGamepass(
+	self: MarketServiceServer,
+	player: Player,
+	passID: number
+)
 	local profile = self._activeProfiles[player]
 	if profile and profile.Data then
 		local passIDKey = getPassIDKey(passID)
 		local data = profile.Data :: { [string]: boolean }
 		data[passIDKey] = true
-		
+
 		if self._network then
 			self._network.SetMarketData.Fire(player, passIDKey, true)
 		else
-			warn("[MarketServiceServer] Attempted to sync client data but _network does not yet exist. Forget to call MarketServiceServer:Init()?")
+			warn(
+				"[MarketServiceServer] Attempted to sync client data but _network does not yet exist. Forget to call MarketServiceServer:Init()?"
+			)
 		end
 	end
-	
+
 	local key = ProductRegistry:GetGamePassKeyFromId(passID)
 	if key and self.GamepassPurchased then
 		self.GamepassPurchased:Fire(player, key)
@@ -651,75 +688,88 @@ function MarketServiceServer._GrantGamepass(self: MarketServiceServer, player: P
 end
 
 function MarketServiceServer._BindMarketEvents(self: MarketServiceServer)
-	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player: Player, passID: number, wasPurchased: boolean)
-		if wasPurchased then
-			self:_GrantGamepass(player, passID)
-		end
-	end)
-	
-	MarketplaceService.PromptProductPurchaseFinished:Connect(function(userID: number, productID: number, wasPurchased: boolean)
-		if not wasPurchased then
-			local giftData = self._activeGifts[userID]
-			if giftData and giftData.ProductID == productID then
-				self._activeGifts[userID] = nil
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(
+		function(player: Player, passID: number, wasPurchased: boolean)
+			if wasPurchased then
+				self:_GrantGamepass(player, passID)
 			end
 		end
-	end)
-	
+	)
+
+	MarketplaceService.PromptProductPurchaseFinished:Connect(
+		function(userID: number, productID: number, wasPurchased: boolean)
+			if not wasPurchased then
+				local giftData = self._activeGifts[userID]
+				if giftData and giftData.ProductID == productID then
+					self._activeGifts[userID] = nil
+				end
+			end
+		end
+	)
+
 	MarketplaceService.ProcessReceipt = function(receiptInfo)
 		return self:_ProcessReceipt(receiptInfo)
 	end
 end
 
 function MarketServiceServer._BindNetworkEvents(self: MarketServiceServer)
-	assert(self._network, "[MarketServiceServer] Attempting to run _BindNetworkEvents while _network does not exist.")
-	
-	self._network.RequestGiftPurchase.SetCallback(function(player: Player, recipient: string, productID: string): boolean
-		local recipientID = tonumber(recipient)
-		local productIDNum = tonumber(productID)
-		
-		if not recipientID or not productIDNum then
-			warn("Invalid recipient or productID:", recipient, productID)
-			return false
-		end
-		
-		local recipientPlayer = Players:GetPlayerByUserId(recipientID)
-		if not recipientPlayer then
-			warn("Recipient player not found:", recipientID)
-			return false
-		end
-		
-		local giftDevProductID
-		local isGamepassGift = false
-		local gamepassKey = ProductRegistry:GetGamePassKeyFromId(productIDNum)
-		
-		if gamepassKey then
-			giftDevProductID = ProductRegistry.GamePasses[gamepassKey].GiftID
-			if not giftDevProductID then
-				warn("Gamepass does not have a gift Dev Product:", gamepassKey)
+	assert(
+		self._network,
+		"[MarketServiceServer] Attempting to run _BindNetworkEvents while _network does not exist."
+	)
+
+	self._network.RequestGiftPurchase.SetCallback(
+		function(player: Player, recipient: string, productID: string): boolean
+			local recipientID = tonumber(recipient)
+			local productIDNum = tonumber(productID)
+
+			if not recipientID or not productIDNum then
+				warn("Invalid recipient or productID:", recipient, productID)
 				return false
 			end
-			isGamepassGift = true
-		else
-			giftDevProductID = productIDNum
+
+			local recipientPlayer = Players:GetPlayerByUserId(recipientID)
+			if not recipientPlayer then
+				warn("Recipient player not found:", recipientID)
+				return false
+			end
+
+			local giftDevProductID
+			local isGamepassGift = false
+			local gamepassKey = ProductRegistry:GetGamePassKeyFromId(productIDNum)
+
+			if gamepassKey then
+				giftDevProductID = ProductRegistry.GamePasses[gamepassKey].GiftID
+				if not giftDevProductID then
+					warn("Gamepass does not have a gift Dev Product:", gamepassKey)
+					return false
+				end
+				isGamepassGift = true
+			else
+				giftDevProductID = productIDNum
+			end
+
+			self._activeGifts[player.UserId] = {
+				PurchaserID = player.UserId,
+				RecipientID = recipientID,
+				ProductID = giftDevProductID,
+				IsGamepassGift = isGamepassGift,
+			}
+
+			return true
 		end
-		
-		self._activeGifts[player.UserId] = {
-			PurchaserID = player.UserId,
-			RecipientID = recipientID,
-			ProductID = giftDevProductID,
-			IsGamepassGift = isGamepassGift,
-		}
-		
-		return true
-	end)
+	)
 end
 
-function MarketServiceServer._OnPlayerAdded(self: MarketServiceServer, player: Player, options: InitOptions?)
+function MarketServiceServer._OnPlayerAdded(
+	self: MarketServiceServer,
+	player: Player,
+	options: InitOptions?
+)
 	self._waitSignals[player] = Signal.new()
-	
+
 	local key = `{options and options.overridenUserId or player.UserId}`
-	
+
 	local params = {
 		Cancel = function()
 			return player.Parent ~= Players
@@ -728,32 +778,34 @@ function MarketServiceServer._OnPlayerAdded(self: MarketServiceServer, player: P
 
 	local profile = if options and options.useMock
 		then (self.marketStore :: marketStore).Mock:StartSessionAsync(key, params) :: Profile
-		elseif options and options.dontSave then (self.marketStore :: marketStore):GetAsync(key) :: Profile
+		elseif options and options.dontSave then (self.marketStore :: marketStore):GetAsync(
+			key
+		) :: Profile
 		else (self.marketStore :: marketStore):StartSessionAsync(key, params) :: Profile
-	
+
 	if not profile then
 		warn(`{player.Name}'s market profile failed to load!`)
 		player:Kick("Failed to load market data. Please rejoin.")
 		return
 	end
-	
+
 	profile:AddUserId(player.UserId)
 	profile:Reconcile()
-	
+
 	profile.OnSessionEnd:Connect(function()
 		self._activeProfiles[player] = nil
 		if player:IsDescendantOf(Players) then
 			player:Kick("Market session closed.\nPlease rejoin!")
 		end
 	end)
-	
+
 	if not player:IsDescendantOf(Players) then
 		profile:EndSession()
 		return
 	end
-	
+
 	self._activeProfiles[player] = profile
-	
+
 	if self._network then
 		self._network.InitializeMarketData.Fire(player, profile.Data)
 	end
@@ -768,13 +820,13 @@ end
 
 function MarketServiceServer._OnPlayerRemoved(self: MarketServiceServer, player: Player)
 	self._activeGifts[player.UserId] = nil
-	
+
 	local waitSignal = self._waitSignals[player]
 	if waitSignal then
 		waitSignal:Destroy()
 		self._waitSignals[player] = nil
 	end
-	
+
 	local profile = self._activeProfiles[player]
 	if profile then
 		profile:EndSession()
