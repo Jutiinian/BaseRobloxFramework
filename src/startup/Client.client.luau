@@ -1,8 +1,10 @@
 -- || Services || --
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local DataServiceClient = require(ReplicatedStorage.Services.DataService.DataServiceClient)
 
 -- || Dependencies || --
+local DataServiceClient = require(ReplicatedStorage.Services.DataService.DataServiceClient)
+local MarketServiceClient = require(ReplicatedStorage.Services.MarketService.MarketServiceClient)
 
 -- || Initializer || --
 DataServiceClient:Init()
+MarketServiceClient:Init()
