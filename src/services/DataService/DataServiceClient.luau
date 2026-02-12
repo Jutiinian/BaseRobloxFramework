@@ -1,3 +1,15 @@
+--[[
+	DataServiceClient
+	
+	Client-side service that receives and caches player data from the server. 
+	Provides read access and reactive signals for observing data changes locally.
+	
+	@author Jutiinian
+	@version February 11, 2026
+]]
+
+--!strict
+
 -- || Services || --
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -16,11 +28,12 @@ type IndexPath = DataServiceTypes.IndexPath
 local initializationSignal = Signal.new()
 
 -- || Public API || --
+type dataProfile = DataProfile.DataProfile<any>
 type DataServiceNetwork = typeof(require(script.Parent.NetworkClient))
 
 local DataServiceClient = {
-	_network = nil :: DataServiceNetwork?,
-	_data = nil :: DataProfile.DataProfile<any>?,
+	_network = (nil :: any) :: DataServiceNetwork,
+	_data = nil :: dataProfile?,
 }
 
 export type DataServiceClient = typeof(DataServiceClient)
@@ -43,34 +56,30 @@ export type DataServiceClient = typeof(DataServiceClient)
 ]]
 function DataServiceClient.Init(self: DataServiceClient)
 	self._network = require(script.Parent.NetworkClient)
-
-	-- Listen for initial data sync from server
-	self._network.InitialDataSync.SetCallback(function(data)
-		if not data then
+	
+	self._network.InitialDataSync.SetCallback(function(value)
+		if not value then
 			return
 		end
 
-		self:_initializeData(data)
+		self:_initializeData(value)
 	end)
 
-	-- Listen for data updates from server
 	self._network.DataUpdate.SetCallback(function(key, value)
 		self:WaitForDataAsync():andThen(function()
-			self._data:Set(key.value, value)
+			(self._data :: dataProfile):Set(key.value, value)
 		end)
 	end)
 
-	-- Listen for array insertions from server
 	self._network.ArrayInsert.SetCallback(function(key, value, index)
 		self:WaitForDataAsync():andThen(function()
-			self._data:ArrayInsert(key.value, value, index)
+			(self._data :: dataProfile):ArrayInsert(key.value, value, index)
 		end)
 	end)
 
-	-- Listen for array removals from server
 	self._network.ArrayRemove.SetCallback(function(key, index)
 		self:WaitForDataAsync():andThen(function()
-			self._data:ArrayRemove(key.value, index)
+			(self._data :: dataProfile):ArrayRemove(key.value, index)
 		end)
 	end)
 end
@@ -100,6 +109,7 @@ end
 	Note: This is a synchronous read from the local cache. Make sure data is loaded first using WaitForData() or WaitForDataAsync().
 ]]
 function DataServiceClient.Get(self: DataServiceClient, indexPath: IndexPath?): any
+	assert(self._data, "[DataServiceClient] Player data not loaded yet. Possibly wait for initialization.")
 	return self._data:Get(indexPath)
 end
 
@@ -119,6 +129,7 @@ end
 	Note: The signal will only fire when the server updates this value. Local changes are not possible on the client.
 ]]
 function DataServiceClient.GetValueChangedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.ClassicSignal<any>
+	assert(self._data, "[DataServiceClient] Player data not loaded yet. Possibly wait for initialization.")
 	return self._data:GetValueChangedSignal(indexPath)
 end
 
@@ -136,6 +147,7 @@ end
 	```
 ]]
 function DataServiceClient.GetArrayInsertedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.ClassicSignal<number, any>
+	assert(self._data, "[DataServiceClient] Player data not loaded yet. Possibly wait for initialization.")
 	return self._data:GetArrayInsertedSignal(indexPath)
 end
 
@@ -153,6 +165,7 @@ end
 	```
 ]]
 function DataServiceClient.GetArrayRemovedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.ClassicSignal<number, any>
+	assert(self._data, "[DataServiceClient] Player data not loaded yet. Possibly wait for initialization.")
 	return self._data:GetArrayRemovedSignal(indexPath)
 end
 
@@ -178,6 +191,7 @@ end
 	```
 ]]
 function DataServiceClient.GetIndexChangedSignal(self: DataServiceClient, indexPath: IndexPath): Signal.ClassicSignal<string, any>
+	assert(self._data, "[DataServiceClient] Player data not loaded yet. Possibly wait for initialization.")
 	return self._data:GetChildChangedSignal(indexPath)
 end
 
@@ -207,6 +221,7 @@ end
 	```
 ]]
 function DataServiceClient.ObserveData(self: DataServiceClient, indexPath: IndexPath, factory: (value: any) -> Disconnect): Disconnect
+	assert(self._data, "[DataServiceClient] Player data not loaded yet. Possibly wait for initialization.")
 	return self._data:ObserveData(indexPath, factory)
 end
 
@@ -247,6 +262,7 @@ end
 	```
 ]]
 function DataServiceClient.ObserveTableData<K, V>(self: DataServiceClient, indexPath: IndexPath, factory: (key: K, value: V) -> Disconnect?, monitorLastValue: boolean?): Disconnect
+	assert(self._data, "[DataServiceClient] Player data not loaded yet. Possibly wait for initialization.")
 	return self._data:ObserveTableData(indexPath, factory, monitorLastValue)
 end
 
@@ -267,7 +283,7 @@ end
 	
 	Note: Generally prefer WaitForDataAsync() for more robust async handling.
 ]]
-function DataServiceClient.WaitForData(self: DataServiceClient): DataProfile.DataProfile<any>
+function DataServiceClient.WaitForData(self: DataServiceClient): dataProfile
 	if not RunService:IsEdit() and not self._data then
 		self:_initializeData(require(script.Parent.DataTemplate))
 	end
@@ -278,7 +294,7 @@ function DataServiceClient.WaitForData(self: DataServiceClient): DataProfile.Dat
 	end
 
 	initializationSignal:Wait()
-	return self._data
+	return self._data :: dataProfile
 end
 
 --[[
@@ -305,7 +321,7 @@ end
 	- Better error handling with catch()
 	- Can be canceled or timed out
 ]]
-function DataServiceClient.WaitForDataAsync(self: DataServiceClient): Promise.TypedPromise<DataProfile.DataProfile<any>>
+function DataServiceClient.WaitForDataAsync(self: DataServiceClient): Promise.TypedPromise<dataProfile>
 	local data = self._data
 	if data then
 		return Promise.resolve(data)
