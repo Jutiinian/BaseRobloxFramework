@@ -1,4 +1,5 @@
 {
+    "editor.formatOnSave": true,
     "stylua.targetReleaseVersion": "latest",
     "[lua]": {
         "editor.defaultFormatter": "JohnnyMorganz.stylua"
