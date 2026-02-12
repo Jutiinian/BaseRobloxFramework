@@ -1,21 +1,40 @@
--- Credit to leif
+--!optimize 2
+--!strict
 
+-- || Services || --
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local React = require(ReplicatedStorage.Packages.React)
+-- || Dependencies || --
+local React = require(ReplicatedStorage.Packages.react)
+local getDependencies = require(ReplicatedStorage.UI.utils.getDependencies)
+local useCurrentCamera = require(ReplicatedStorage.UI.hooks.useCurrentCamera)
 
-return function()
-	local value, setValue = React.useState(workspace.CurrentCamera.ViewportSize)
+-- || Hook || --
+local function useViewportSize(onChange: nil | (viewportSize: Vector2) -> ())
+	local currentCamera = useCurrentCamera()
+	local viewportSize, setViewportSize = React.useBinding(currentCamera.ViewportSize)
 
 	React.useEffect(function()
-		local conn = workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-			setValue(workspace.CurrentCamera.ViewportSize)
+		local newViewportSize = currentCamera.ViewportSize
+		setViewportSize(newViewportSize)
+		if onChange then
+			onChange(newViewportSize)
+		end
+
+		local connection = currentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+			local newNewViewportSize = currentCamera.ViewportSize
+			setViewportSize(newNewViewportSize)
+			if onChange then
+				onChange(newNewViewportSize)
+			end
 		end)
 
 		return function()
-			conn:Disconnect()
+			connection:Disconnect()
 		end
-	end, {})
+	end, getDependencies(currentCamera))
 
-	return value
+	return viewportSize
 end
+
+return useViewportSize

@@ -1,21 +1,52 @@
+--!optimize 2
+--!strict
+
 -- || Services || --
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- || Dependencies || --
 local DataServiceClient = require(ReplicatedStorage.Services.DataService.DataServiceClient)
+local Promise = require(ReplicatedStorage.Packages.promise)
 local React = require(ReplicatedStorage.Packages.react)
 
--- || Hook || --
-return function(key: string | { string }, initialValue: any?)
-	local dataBinding, setData = React.useBinding(DataServiceClient:Get(key) or initialValue)
+-- || Variables || --
+local useBinding = React.useBinding
+local useEffect = React.useEffect
 
-	React.useEffect(function()
-		local signalConnection = DataServiceClient:GetValueChangedSignal(key):Connect(setData)
+-- || Hook || --
+return function(key: string | { string }, onChange: nil | (value: any) -> (), initialValue: any?)
+	local value, setValue = useBinding(initialValue)
+
+	useEffect(function()
+		local signalConnection
+
+		local dataPromise = DataServiceClient:WaitForDataAsync()
+			:andThen(function()
+				setValue(DataServiceClient:Get(key))
+				if onChange then
+					onChange(DataServiceClient:Get(key))
+				end
+
+				signalConnection = DataServiceClient:GetValueChangedSignal(key)
+					:Connect(function(newValue)
+						setValue(newValue)
+						if onChange then
+							onChange(newValue)
+						end
+					end)
+			end)
+			:catch(warn)
 
 		return function()
-			signalConnection:Disconnect()
-		end
-	end, {})
+			if dataPromise:getStatus() == Promise.Status.Started then
+				dataPromise:cancel()
+			end
 
-	return dataBinding
+			if signalConnection then
+				signalConnection:Disconnect()
+			end
+		end
+	end, { key })
+
+	return value
 end
