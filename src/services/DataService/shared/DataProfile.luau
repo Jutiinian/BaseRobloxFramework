@@ -8,9 +8,6 @@ local PathUtils = require(script.Parent.PathUtils)
 local Signal = require(ReplicatedStorage.Packages.signal)
 
 -- || Variables || --
-local pathCache = {} :: { [string]: { string } }
-setmetatable(pathCache, {__mode = "k"})
-
 type Disconnect = DataServiceTypes.Disconnect
 type IndexPath = DataServiceTypes.IndexPath
 type WeakValueTable<T> = typeof(setmetatable({} :: { [string]: T }, { __mode = "v" }))
@@ -65,31 +62,31 @@ function DataProfile.Get<T>(self: DataProfile<T>, indexPath: IndexPath?): T | an
 	if indexPath == nil then
 		return self._data
 	end
-	
+
 	local normalized, isSplit = PathUtils.normalizePath(indexPath)
-	
+
 	if not isSplit then
 		return (self._data :: any)[normalized]
 	end
-	
+
 	local current = self._data
 	for _, key in ipairs(normalized :: { string }) do
 		if type(current) ~= "table" then
 			return nil
 		end
-		
+
 		current = (current :: any)[key]
 		if current == nil then
 			return nil
 		end
 	end
-	
+
 	return current
 end
 
 function DataProfile.Set<T>(self: DataProfile<T>, indexPath: IndexPath, value: any): ()
 	assert(indexPath ~= nil, "IndexPath cannot be nil in Set")
-	
+
 	local normalized, isSplit = PathUtils.normalizePath(indexPath)
 	local data = self._data :: any
 
@@ -99,7 +96,7 @@ function DataProfile.Set<T>(self: DataProfile<T>, indexPath: IndexPath, value: a
 		if data[key] == value then
 			return
 		end
-		
+
 		data[key] = value
 		self:_fireChangedSignals(key)
 		return
@@ -109,7 +106,9 @@ function DataProfile.Set<T>(self: DataProfile<T>, indexPath: IndexPath, value: a
 	for i = 1, #path - 1 do
 		data = data[path[i]]
 		if data == nil then
-			error(`Cannot set value at path {PathUtils.stringifyPath(indexPath)}: parent does not exist`)
+			error(
+				`Cannot set value at path {PathUtils.stringifyPath(indexPath)}: parent does not exist`
+			)
 		end
 	end
 
@@ -118,7 +117,7 @@ function DataProfile.Set<T>(self: DataProfile<T>, indexPath: IndexPath, value: a
 	if data[finalKey] == value then
 		return
 	end
-	
+
 	data[finalKey] = value
 	self:_fireChangedSignals(normalized)
 end
@@ -132,7 +131,12 @@ function DataProfile.Update<T>(self: DataProfile<T>, indexPath: IndexPath, callb
 	return newValue
 end
 
-function DataProfile.ArrayInsert<T>(self: DataProfile<T>, indexPath: IndexPath, value: any, index: number?): ()
+function DataProfile.ArrayInsert<T>(
+	self: DataProfile<T>,
+	indexPath: IndexPath,
+	value: any,
+	index: number?
+): ()
 	local data = self:Get(indexPath)
 	assert(type(data) == "table", "Data at path is not a table")
 
@@ -169,25 +173,41 @@ function DataProfile.ArrayRemove<T>(self: DataProfile<T>, indexPath: IndexPath, 
 	return value
 end
 
-function DataProfile.GetValueChangedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<any>
+function DataProfile.GetValueChangedSignal<T>(
+	self: DataProfile<T>,
+	indexPath: IndexPath
+): Signal.Signal<any>
 	return self:_retrieveSignal(indexPath, "ValueChanged")
 end
 
-function DataProfile.GetChildChangedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<string, any>
+function DataProfile.GetChildChangedSignal<T>(
+	self: DataProfile<T>,
+	indexPath: IndexPath
+): Signal.Signal<string, any>
 	return self:_retrieveSignal(indexPath, "IndexChanged")
 end
 
 DataProfile.GetIndexChangedSignal = DataProfile.GetChildChangedSignal
 
-function DataProfile.GetArrayInsertedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<number, any>
+function DataProfile.GetArrayInsertedSignal<T>(
+	self: DataProfile<T>,
+	indexPath: IndexPath
+): Signal.Signal<number, any>
 	return self:_retrieveSignal(indexPath, "ArrayInserted")
 end
 
-function DataProfile.GetArrayRemovedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<number, any>
+function DataProfile.GetArrayRemovedSignal<T>(
+	self: DataProfile<T>,
+	indexPath: IndexPath
+): Signal.Signal<number, any>
 	return self:_retrieveSignal(indexPath, "ArrayRemoved")
 end
 
-function DataProfile.ObserveData<T>(self: DataProfile<T>, indexPath: IndexPath, factory: (value: any) -> Disconnect?): Disconnect
+function DataProfile.ObserveData<T>(
+	self: DataProfile<T>,
+	indexPath: IndexPath,
+	factory: (value: any) -> Disconnect?
+): Disconnect
 	local cleanupFunction: (() -> ())? = nil
 
 	local function listener(value: any)
@@ -221,12 +241,17 @@ function DataProfile.ObserveData<T>(self: DataProfile<T>, indexPath: IndexPath, 
 end
 
 -- TODO: MAYBE make separate observe array function
-function DataProfile.ObserveTableData<T, K, V>(self: DataProfile<T>, indexPath: IndexPath, factory: (key: K, value: V) -> Disconnect?, monitorLastValue: boolean?): Disconnect
-	local connections: { [K]: {disconnect: Disconnect, lastValue: V?} } = {}
+function DataProfile.ObserveTableData<T, K, V>(
+	self: DataProfile<T>,
+	indexPath: IndexPath,
+	factory: (key: K, value: V) -> Disconnect?,
+	monitorLastValue: boolean?
+): Disconnect
+	local connections: { [K]: { disconnect: Disconnect, lastValue: V? } } = {}
 
-	local function listener(state: {[K]: V})
+	local function listener(state: { [K]: V })
 		state = state or {}
-		
+
 		for key, data in next, connections do
 			if state[key] == nil then
 				connections[key] = nil
@@ -241,14 +266,14 @@ function DataProfile.ObserveTableData<T, K, V>(self: DataProfile<T>, indexPath: 
 				local clean = factory(key, value)
 				connections[key] = {
 					disconnect = typeof(clean) == "function" and clean or function() end,
-					lastValue = value
+					lastValue = value,
 				}
 			elseif monitorLastValue and data.lastValue ~= value then
 				data.disconnect()
 				local clean = factory(key, value)
 				connections[key] = {
 					disconnect = typeof(clean) == "function" and clean or function() end,
-					lastValue = value
+					lastValue = value,
 				}
 			end
 		end
@@ -257,7 +282,9 @@ function DataProfile.ObserveTableData<T, K, V>(self: DataProfile<T>, indexPath: 
 	local conn = self:GetValueChangedSignal(indexPath):Connect(listener)
 
 	task.defer(function()
-		if not conn.Connected then return end
+		if not conn.Connected then
+			return
+		end
 		listener(self:Get(indexPath) :: any)
 	end)
 
@@ -273,11 +300,11 @@ end
 -- Signal Functions
 function DataProfile._fireChangedSignals<T>(self: DataProfile<T>, indexPath: IndexPath): string
 	local normalized, isSplit = PathUtils.normalizePath(indexPath)
-	
+
 	-- Fast path for single key
 	if not isSplit then
 		local key = normalized :: string
-		self:_fireValueChangedSignal(key, ((self._data :: any)[key]))
+		self:_fireValueChangedSignal(key, (self._data :: any)[key])
 		return key
 	end
 
@@ -302,117 +329,130 @@ function DataProfile._fireChangedSignals<T>(self: DataProfile<T>, indexPath: Ind
 	return indexString
 end
 
-function DataProfile._fireValueChangedSignal<T>(self: DataProfile<T>, indexPath: string, value: any): ()
+function DataProfile._fireValueChangedSignal<T>(
+	self: DataProfile<T>,
+	indexPath: string,
+	value: any
+): ()
 	local signal = self._signals.ValueChanged[indexPath]
 	if signal then
 		signal:Fire(value)
 	end
 end
 
-function DataProfile._fireIndexChangedSignal<T>(self: DataProfile<T>, indexPath: string, index: string | number, value: any): ()
+function DataProfile._fireIndexChangedSignal<T>(
+	self: DataProfile<T>,
+	indexPath: string,
+	index: string | number,
+	value: any
+): ()
 	local signal = self._signals.IndexChanged[indexPath]
 	if signal then
 		signal:Fire(index, value)
 	end
 end
 
-function DataProfile._retrieveSignal<T>(self: DataProfile<T>, indexPath: IndexPath, signalType: string): Signal.Signal<any, any>
-    local pathString = PathUtils.stringifyPath(indexPath)
-    local weakSignals = self._weakSignals[signalType]
-    local strongSignals = self._signals[signalType]
-    
-    -- Return existing signal if found
-    local existingSignal = weakSignals[pathString]
-    if existingSignal then
-        return existingSignal
-    end
-    
-    -- Create new signal with connection tracking
-    local signal = Signal.new()
-    weakSignals[pathString] = signal
-    
-    local connectionCount = 0
-    local isDestroyed = false
-    
-    -- Helper to promote signal to strong reference
-    local function promoteToStrong()
-        if connectionCount > 0 and not isDestroyed then
-            strongSignals[pathString] = signal
-        end
-    end
-    
-    -- Helper to demote signal from strong reference
-    local function demoteFromStrong()
-        if connectionCount <= 0 then
-            strongSignals[pathString] = nil
-        end
-    end
-    
-    -- Override connection methods to track active connections
-    local originalConnect = signal.Connect
-    local originalOnce = signal.Once
-    
-    local function wrapConnectionMethod(originalMethod)
-        return function(_, handler: (...any?) -> ())
-            if isDestroyed then
-                warn("Attempting to connect to destroyed signal at path: " .. pathString)
-                return
-            end
-            
-            local connection = originalMethod(signal, handler)
-            connectionCount += 1
-            promoteToStrong()
-            
-            -- Wrap disconnect to track connection count
-            local originalDisconnect = connection.Disconnect
-            local hasDisconnected = false
-            
-            local function disconnect()
-                if hasDisconnected then
-                    return
-                end
-                
-                hasDisconnected = true
-                if connection.Connected then
-                    connectionCount -= 1
-                    demoteFromStrong()
-                end
-                originalDisconnect(connection)
-            end
-            
-            connection.Disconnect = disconnect
-            connection.Destroy = disconnect
-            
-            return connection
-        end
-    end
-    
-    signal.Connect = wrapConnectionMethod(originalConnect)
-    signal.Once = wrapConnectionMethod(originalOnce)
-    
-    -- Override DisconnectAll
-    local originalDisconnectAll = signal.DisconnectAll
-    signal.DisconnectAll = function()
-        connectionCount = 0
-        strongSignals[pathString] = nil
-        originalDisconnectAll(signal)
-    end
-    
-    -- Override Destroy
-    local originalDestroy = signal.Destroy
-    signal.Destroy = function()
-        if isDestroyed then
-            return
-        end
-        
-        isDestroyed = true
-        connectionCount = 0
-        strongSignals[pathString] = nil
-        weakSignals[pathString] = nil
-        originalDestroy(signal)
-    end
-    
-    return signal
+function DataProfile._retrieveSignal<T>(
+	self: DataProfile<T>,
+	indexPath: IndexPath,
+	signalType: string
+): Signal.Signal<any, any>
+	local pathString = PathUtils.stringifyPath(indexPath)
+	local weakSignals = self._weakSignals[signalType]
+	local strongSignals = self._signals[signalType]
+
+	-- Return existing signal if found
+	local existingSignal = weakSignals[pathString]
+	if existingSignal then
+		return existingSignal
+	end
+
+	-- Create new signal with connection tracking
+	local signal = Signal.new()
+	weakSignals[pathString] = signal
+
+	local connectionCount = 0
+	local isDestroyed = false
+
+	-- Helper to promote signal to strong reference
+	local function promoteToStrong()
+		if connectionCount > 0 and not isDestroyed then
+			strongSignals[pathString] = signal
+		end
+	end
+
+	-- Helper to demote signal from strong reference
+	local function demoteFromStrong()
+		if connectionCount <= 0 then
+			strongSignals[pathString] = nil
+		end
+	end
+
+	-- Override connection methods to track active connections
+	local originalConnect = signal.Connect
+	local originalOnce = signal.Once
+
+	local function wrapConnectionMethod(originalMethod)
+		return function(_, handler: (...any?) -> ())
+			if isDestroyed then
+				warn("Attempting to connect to destroyed signal at path: " .. pathString)
+				return
+			end
+
+			local connection = originalMethod(signal, handler)
+			connectionCount += 1
+			promoteToStrong()
+
+			-- Wrap disconnect to track connection count
+			local originalDisconnect = connection.Disconnect
+			local hasDisconnected = false
+
+			local function disconnect()
+				if hasDisconnected then
+					return
+				end
+
+				hasDisconnected = true
+				if connection.Connected then
+					connectionCount -= 1
+					demoteFromStrong()
+				end
+				originalDisconnect(connection)
+			end
+
+			connection.Disconnect = disconnect
+			connection.Destroy = disconnect
+
+			return connection
+		end
+	end
+
+	signal.Connect = wrapConnectionMethod(originalConnect)
+	signal.Once = wrapConnectionMethod(originalOnce)
+
+	-- Override DisconnectAll
+	local originalDisconnectAll = signal.DisconnectAll
+	signal.DisconnectAll = function()
+		connectionCount = 0
+		strongSignals[pathString] = nil
+		originalDisconnectAll(signal)
+	end
+
+	-- Override Destroy
+	local originalDestroy = signal.Destroy
+	signal.Destroy = function()
+		if isDestroyed then
+			return
+		end
+
+		isDestroyed = true
+		connectionCount = 0
+		strongSignals[pathString] = nil
+		weakSignals[pathString] = nil
+		originalDestroy(signal)
+	end
+
+	return signal
 end
 
 -- Destroy Function
