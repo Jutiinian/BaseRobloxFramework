@@ -1,9 +1,12 @@
--- Credit to leif
+--!strict
 
+-- || Services || --
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local React = require(ReplicatedStorage.Packages.React)
-local useViewportSize = require(ReplicatedStorage.UI.hooks.useViewportSize)
+-- || Dependencies || --
+local React = require(ReplicatedStorage.Packages.react)
+local getDependencies = require(ReplicatedStorage.UI.utils.getDependencies)
+local useScale = require(ReplicatedStorage.UI.hooks.useScale)
 
 local STUDIO_SIZE = Vector2.new(1500, 803)
 
@@ -20,18 +23,14 @@ export type AutoScaledFrameProps = {
 }
 
 return React.forwardRef(function(props: AutoScaledFrameProps, ref: React.Ref<any>)
-	local screenSize = useViewportSize() -- This uses React.useState internally
 	local minSize = props.MinSize or Vector2.zero
 	local scaleFactor = props.ScaleFactor or 1
-	local scaleBinding, setScale = React.useBinding(scaleFactor)
+
 	local minScale = React.useMemo(function()
 		return math.max(minSize.X / props.Size.X.Offset, minSize.Y / props.Size.Y.Offset)
-	end, { screenSize, minSize, props.Size })
+	end, getDependencies(minSize, props.Size))
 
-	React.useEffect(function()
-		local newScale = scaleFactor * math.min(screenSize.X / STUDIO_SIZE.X, screenSize.Y / STUDIO_SIZE.Y)
-		setScale(math.max(newScale, minScale))
-	end, { screenSize, minSize, scaleFactor })
+	local scaleBinding = useScale(scaleFactor, STUDIO_SIZE)
 
 	return React.createElement("Frame", {
 		Size = props.Size,
@@ -43,8 +42,10 @@ return React.forwardRef(function(props: AutoScaledFrameProps, ref: React.Ref<any
 		ref = ref,
 	}, {
 		React.createElement("UIScale", {
-			Scale = scaleBinding,
+			Scale = scaleBinding:map(function(scaleNumber)
+				return math.max(scaleNumber, minScale)
+			end),
 		}),
-		props.children,
+		props.children :: any,
 	})
 end)
