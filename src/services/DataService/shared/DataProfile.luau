@@ -106,9 +106,7 @@ function DataProfile.Set<T>(self: DataProfile<T>, indexPath: IndexPath, value: a
 	for i = 1, #path - 1 do
 		data = data[path[i]]
 		if data == nil then
-			error(
-				`Cannot set value at path {PathUtils.stringifyPath(indexPath)}: parent does not exist`
-			)
+			error(`Cannot set value at path {PathUtils.stringifyPath(indexPath)}: parent does not exist`)
 		end
 	end
 
@@ -131,12 +129,7 @@ function DataProfile.Update<T>(self: DataProfile<T>, indexPath: IndexPath, callb
 	return newValue
 end
 
-function DataProfile.ArrayInsert<T>(
-	self: DataProfile<T>,
-	indexPath: IndexPath,
-	value: any,
-	index: number?
-): ()
+function DataProfile.ArrayInsert<T>(self: DataProfile<T>, indexPath: IndexPath, value: any, index: number?): ()
 	local data = self:Get(indexPath)
 	assert(type(data) == "table", "Data at path is not a table")
 
@@ -173,41 +166,25 @@ function DataProfile.ArrayRemove<T>(self: DataProfile<T>, indexPath: IndexPath, 
 	return value
 end
 
-function DataProfile.GetValueChangedSignal<T>(
-	self: DataProfile<T>,
-	indexPath: IndexPath
-): Signal.Signal<any>
+function DataProfile.GetValueChangedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<any>
 	return self:_retrieveSignal(indexPath, "ValueChanged")
 end
 
-function DataProfile.GetChildChangedSignal<T>(
-	self: DataProfile<T>,
-	indexPath: IndexPath
-): Signal.Signal<string, any>
+function DataProfile.GetChildChangedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<string, any>
 	return self:_retrieveSignal(indexPath, "IndexChanged")
 end
 
 DataProfile.GetIndexChangedSignal = DataProfile.GetChildChangedSignal
 
-function DataProfile.GetArrayInsertedSignal<T>(
-	self: DataProfile<T>,
-	indexPath: IndexPath
-): Signal.Signal<number, any>
+function DataProfile.GetArrayInsertedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<number, any>
 	return self:_retrieveSignal(indexPath, "ArrayInserted")
 end
 
-function DataProfile.GetArrayRemovedSignal<T>(
-	self: DataProfile<T>,
-	indexPath: IndexPath
-): Signal.Signal<number, any>
+function DataProfile.GetArrayRemovedSignal<T>(self: DataProfile<T>, indexPath: IndexPath): Signal.Signal<number, any>
 	return self:_retrieveSignal(indexPath, "ArrayRemoved")
 end
 
-function DataProfile.ObserveData<T>(
-	self: DataProfile<T>,
-	indexPath: IndexPath,
-	factory: (value: any) -> Disconnect?
-): Disconnect
+function DataProfile.ObserveData<T>(self: DataProfile<T>, indexPath: IndexPath, factory: (value: any) -> Disconnect?): Disconnect
 	local cleanupFunction: (() -> ())? = nil
 
 	local function listener(value: any)
@@ -329,34 +306,21 @@ function DataProfile._fireChangedSignals<T>(self: DataProfile<T>, indexPath: Ind
 	return indexString
 end
 
-function DataProfile._fireValueChangedSignal<T>(
-	self: DataProfile<T>,
-	indexPath: string,
-	value: any
-): ()
+function DataProfile._fireValueChangedSignal<T>(self: DataProfile<T>, indexPath: string, value: any): ()
 	local signal = self._signals.ValueChanged[indexPath]
 	if signal then
 		signal:Fire(value)
 	end
 end
 
-function DataProfile._fireIndexChangedSignal<T>(
-	self: DataProfile<T>,
-	indexPath: string,
-	index: string | number,
-	value: any
-): ()
+function DataProfile._fireIndexChangedSignal<T>(self: DataProfile<T>, indexPath: string, index: string | number, value: any): ()
 	local signal = self._signals.IndexChanged[indexPath]
 	if signal then
 		signal:Fire(index, value)
 	end
 end
 
-function DataProfile._retrieveSignal<T>(
-	self: DataProfile<T>,
-	indexPath: IndexPath,
-	signalType: string
-): Signal.Signal<any, any>
+function DataProfile._retrieveSignal<T>(self: DataProfile<T>, indexPath: IndexPath, signalType: string): Signal.Signal<any, any>
 	local pathString = PathUtils.stringifyPath(indexPath)
 	local weakSignals = self._weakSignals[signalType]
 	local strongSignals = self._signals[signalType]
