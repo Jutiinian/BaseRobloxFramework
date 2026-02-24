@@ -9,6 +9,7 @@ const BLACKLISTED_DIRS = [
   toPosix(path.join(BASE_PATH, "startup")),
   toPosix(path.join(BASE_PATH, "shared")),
   toPosix(path.join(BASE_PATH, "ui")),
+  toPosix(path.join(BASE_PATH, "game-assets"))
 ];
 
 function toPosix(p) {
@@ -55,6 +56,22 @@ function getVirtualPath(filepath) {
         target,
         folder: [destinationFolder, moduleName],
         name,
+        file: toPosix(filepath.replace(BASE_PATH + path.sep, "src" + path.sep)),
+        moduleType,
+        moduleName,
+      };
+    }
+
+    // Handle ui folder - mark it for $path treatment
+    if (subFolder === "ui") {
+      target = "ReplicatedStorage";
+
+      return {
+        target,
+        folder: [destinationFolder, moduleName],
+        name: "UI",
+        isUIFolder: true,
+        uiPath: toPosix(path.dirname(filepath).replace(BASE_PATH + path.sep, "src" + path.sep)),
         file: toPosix(filepath.replace(BASE_PATH + path.sep, "src" + path.sep)),
         moduleType,
         moduleName,
@@ -111,24 +128,6 @@ function getVirtualPath(filepath) {
       };
     }
 
-    // Handle ui folder - goes to ReplicatedStorage
-    if (subFolder === "ui") {
-      target = "ReplicatedStorage";
-
-      // Build folder path including any nested subdirectories
-      const nestedFolders = parts.slice(3, -1); // Get folders between "ui" and the file
-      const folderPath = [destinationFolder, moduleName, "UI", ...nestedFolders];
-
-      return {
-        target,
-        folder: folderPath,
-        name,
-        file: toPosix(filepath.replace(BASE_PATH + path.sep, "src" + path.sep)),
-        moduleType,
-        moduleName,
-      };
-    }
-
     // Handle root-level files in the module (e.g., ExampleServer.luau, ExampleClient.luau)
     if (parts.length === 3) {
       const isServerFile = lowerFilename.includes("server");
@@ -155,7 +154,7 @@ function getVirtualPath(filepath) {
 }
 
 const tree = {
-  name: "PracticeProject",
+  name: "Game-Framework",
   tree: {
     $className: "DataModel",
 
@@ -173,6 +172,11 @@ const tree = {
       Shared: {
         $className: "Folder",
         $path: "src/shared",
+      },
+
+      Assets: {
+        $className: "Folder",
+        $path: "src/game-assets",
       },
 
       UI: {
@@ -244,10 +248,26 @@ function walk(dir, callback) {
 
 // Track init.luau claimed folders to avoid duplicates
 const initClaimedFolders = new Set();
+// Track UI folders that should be $path references
+const uiFolderPaths = new Map(); // key: folder path, value: ui directory path
 
 walk(BASE_PATH, (filepath) => {
   const pathInfo = getVirtualPath(filepath);
-  const { target, folder, name, file, moduleName } = pathInfo;
+  const { target, folder, name, file, moduleName, isUIFolder, uiPath } = pathInfo;
+
+  // If this is a UI folder file, track it and skip processing
+  if (isUIFolder) {
+    const folderKey = folder.join("/") + "/UI";
+    if (!uiFolderPaths.has(folderKey)) {
+      // Find the actual ui folder path (up to the 'ui' directory)
+      const relativePath = path.relative(BASE_PATH, filepath);
+      const parts = relativePath.split(path.sep);
+      const uiIndex = parts.indexOf("ui");
+      const uiFolderPath = parts.slice(0, uiIndex + 1).join("/");
+      uiFolderPaths.set(folderKey, "src/" + uiFolderPath);
+    }
+    return; // Skip processing individual UI files
+  }
 
   // Determine root based on target and folder type
   let root;
@@ -297,6 +317,32 @@ walk(BASE_PATH, (filepath) => {
   // Add the file
   current[name] = { $path: file };
 });
+
+// After processing all files, add UI folder $path references
+for (const [folderKey, uiPath] of uiFolderPaths.entries()) {
+  const parts = folderKey.split("/");
+  const destinationType = parts[0]; // "Features" or "Services"
+
+  let root;
+  if (destinationType === "Features") {
+    root = replicatedFeatures;
+  } else {
+    root = replicatedServices;
+  }
+
+  // Navigate to the parent folder
+  let current = root;
+  for (let i = 1; i < parts.length - 1; i++) {
+    const part = parts[i];
+    if (!current[part]) {
+      current[part] = { $className: "Folder" };
+    }
+    current = current[part];
+  }
+
+  // Set the UI folder to $path
+  current.UI = { $path: uiPath };
+}
 
 fs.writeFileSync("default.project.json", JSON.stringify(tree, null, 2));
 console.log("✅ default.project.json generated.");
