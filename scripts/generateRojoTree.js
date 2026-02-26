@@ -9,7 +9,7 @@ const BLACKLISTED_DIRS = [
   toPosix(path.join(BASE_PATH, "startup")),
   toPosix(path.join(BASE_PATH, "shared")),
   toPosix(path.join(BASE_PATH, "ui")),
-  toPosix(path.join(BASE_PATH, "game-assets"))
+  toPosix(path.join(BASE_PATH, "assets"))
 ];
 
 function toPosix(p) {
@@ -176,7 +176,7 @@ const tree = {
 
       Assets: {
         $className: "Folder",
-        $path: "src/game-assets",
+        $path: "src/assets/Shared",
       },
 
       UI: {
@@ -187,6 +187,15 @@ const tree = {
       Packages: {
         $path: "Packages",
       },
+    },
+
+    ServerStroage: {
+      $className: "ServerStorage",
+
+      Assets: {
+        $className: "Folder",
+        $path: "src/assets/Server",
+      }
     },
 
     ServerScriptService: {

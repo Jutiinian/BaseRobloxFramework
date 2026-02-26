@@ -1,5 +1,5 @@
 {
-  "name": "PracticeProject",
+  "name": "Game-Framework",
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
@@ -15,13 +15,7 @@
             "$path": "src/features/Example/network/Client.luau"
           },
           "UI": {
-            "$className": "Folder",
-            "ExampleSlice": {
-              "$path": "src/features/Example/ui/ExampleSlice.luau"
-            },
-            "mount": {
-              "$path": "src/features/Example/ui/mount.luau"
-            }
+            "$path": "src/features/Example/ui"
           }
         }
       },
@@ -48,6 +42,9 @@
             "$path": "src/services/DataService/shared/PathUtils.luau"
           }
         },
+        "InputService": {
+          "$path": "src/services/InputService"
+        },
         "MarketService": {
           "$className": "Folder",
           "MarketServiceClient": {
@@ -62,11 +59,27 @@
           "ProductRegistry": {
             "$path": "src/services/MarketService/shared/ProductRegistry.luau"
           }
+        },
+        "SettingsService": {
+          "$className": "Folder",
+          "SettingsServiceClient": {
+            "$path": "src/services/SettingsService/SettingsServiceClient.luau"
+          },
+          "SettingsProfile": {
+            "$path": "src/services/SettingsService/shared/SettingsProfile.luau"
+          },
+          "SettingsTemplate": {
+            "$path": "src/services/SettingsService/shared/SettingsTemplate.luau"
+          }
         }
       },
       "Shared": {
         "$className": "Folder",
         "$path": "src/shared"
+      },
+      "Assets": {
+        "$className": "Folder",
+        "$path": "src/assets/Shared"
       },
       "UI": {
         "$className": "Folder",
@@ -74,6 +87,13 @@
       },
       "Packages": {
         "$path": "Packages"
+      }
+    },
+    "ServerStroage": {
+      "$className": "ServerStorage",
+      "Assets": {
+        "$className": "Folder",
+        "$path": "src/assets/Server"
       }
     },
     "ServerScriptService": {
@@ -108,6 +128,12 @@
           },
           "NetworkServer": {
             "$path": "src/services/MarketService/network/Server.luau"
+          }
+        },
+        "SettingsService": {
+          "$className": "Folder",
+          "SettingsServiceServer": {
+            "$path": "src/services/SettingsService/SettingsServiceServer.luau"
           }
         }
       },
