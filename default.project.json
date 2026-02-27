@@ -65,11 +65,35 @@
           "SettingsServiceClient": {
             "$path": "src/services/SettingsService/SettingsServiceClient.luau"
           },
+          "NetworkClient": {
+            "$path": "src/services/SettingsService/network/Client.luau"
+          },
           "SettingsProfile": {
             "$path": "src/services/SettingsService/shared/SettingsProfile.luau"
           },
           "SettingsTemplate": {
             "$path": "src/services/SettingsService/shared/SettingsTemplate.luau"
+          }
+        },
+        "StateService": {
+          "$className": "Folder",
+          "Shared": {
+            "$className": "Folder",
+            "StateProfile": {
+              "$path": "src/services/StateService/Shared/StateProfile.luau"
+            },
+            "StateServiceTypes": {
+              "$path": "src/services/StateService/Shared/StateServiceTypes.luau"
+            },
+            "Utils": {
+              "$className": "Folder",
+              "HeapManager": {
+                "$path": "src/services/StateService/Shared/Utils/HeapManager.luau"
+              }
+            }
+          },
+          "StateServiceClient": {
+            "$path": "src/services/StateService/StateServiceClient.luau"
           }
         }
       },
@@ -134,6 +158,15 @@
           "$className": "Folder",
           "SettingsServiceServer": {
             "$path": "src/services/SettingsService/SettingsServiceServer.luau"
+          },
+          "NetworkServer": {
+            "$path": "src/services/SettingsService/network/Server.luau"
+          }
+        },
+        "StateService": {
+          "$className": "Folder",
+          "StateServiceServer": {
+            "$path": "src/services/StateService/StateServiceServer.luau"
           }
         }
       },
