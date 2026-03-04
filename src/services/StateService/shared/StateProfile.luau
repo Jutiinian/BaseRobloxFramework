@@ -100,7 +100,7 @@ end
 function StateProfile.AddMany(self: StateProfile, map: { [string]: number | boolean })
 	for stateKey, value in map do
 		if value == false then
-			return
+			continue
 		end
 		self:Add(stateKey, if type(value) == "number" then value else nil)
 	end
