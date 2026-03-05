@@ -6,6 +6,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- || Dependencies || --
 local Observers = require(ReplicatedStorage.Packages.observers)
+local Promise = require(ReplicatedStorage.Packages.promise)
+local Signal = require(ReplicatedStorage.Packages.signal)
 
 local StateProfile = require(ReplicatedStorage.Services.StateService.StateProfile)
 local StateServiceTypes = require(ReplicatedStorage.Services.StateService.StateServiceTypes)
@@ -38,6 +40,7 @@ end
 -- || Public API || --
 local StateServiceServer = {
 	_network = (nil :: Networker?) :: Networker,
+	_waitSignals = {} :: { [StateServiceTypes.Object]: Signal.ClassicSignal<> },
 	_profiles = {} :: { [StateServiceTypes.Object]: profile? },
 }
 
@@ -60,6 +63,10 @@ function StateServiceServer.InitializeObject(self: StateServiceServer, object: S
 
 	local profile = StateProfile.new()
 	self._profiles[object] = profile
+
+	if self._waitSignals[object] then
+		self._waitSignals[object]:Fire()
+	end
 
 	if not object:IsA("Player") then
 		profile._janitor:Add(
@@ -200,6 +207,32 @@ function StateServiceServer.ObserveMany(
 	callback: StateServiceTypes.ObserveManyCallback
 ): StateServiceTypes.Disconnect
 	return self:_requireProfile(object):ObserveMany(stateKeys, callback)
+end
+
+function StateServiceServer.AwaitObjectInitialization(self: StateServiceServer, object: StateServiceTypes.Object): Promise.Promise
+	local profile = self._profiles[object]
+	if profile then
+		return Promise.resolve()
+	end
+
+	local waitSignal = self._waitSignals[object]
+	if not waitSignal then
+		waitSignal = Signal.new()
+		self._waitSignals[object] = waitSignal
+	end
+
+	return Promise.race({
+		Promise.fromEvent(waitSignal :: any, function()
+			return self._profiles[object] ~= nil
+		end),
+
+		Promise.fromEvent(object.Destroying):andThen(function()
+			return Promise.reject("Object destroyed before data loaded")
+		end),
+	}):finally(function()
+		waitSignal:Destroy()
+		self._waitSignals[object] = nil
+	end)
 end
 
 function StateServiceServer._requireProfile(self: StateServiceServer, object: StateServiceTypes.Object): profile
