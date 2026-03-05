@@ -77,23 +77,23 @@
         },
         "StateService": {
           "$className": "Folder",
-          "Shared": {
-            "$className": "Folder",
-            "StateProfile": {
-              "$path": "src/services/StateService/Shared/StateProfile.luau"
-            },
-            "StateServiceTypes": {
-              "$path": "src/services/StateService/Shared/StateServiceTypes.luau"
-            },
-            "Utils": {
-              "$className": "Folder",
-              "HeapManager": {
-                "$path": "src/services/StateService/Shared/Utils/HeapManager.luau"
-              }
-            }
-          },
           "StateServiceClient": {
             "$path": "src/services/StateService/StateServiceClient.luau"
+          },
+          "NetworkClient": {
+            "$path": "src/services/StateService/network/Client.luau"
+          },
+          "StateProfile": {
+            "$path": "src/services/StateService/shared/StateProfile.luau"
+          },
+          "StateServiceTypes": {
+            "$path": "src/services/StateService/shared/StateServiceTypes.luau"
+          },
+          "Utils": {
+            "$className": "Folder",
+            "HeapManager": {
+              "$path": "src/services/StateService/shared/Utils/HeapManager.luau"
+            }
           }
         }
       },
@@ -167,6 +167,9 @@
           "$className": "Folder",
           "StateServiceServer": {
             "$path": "src/services/StateService/StateServiceServer.luau"
+          },
+          "NetworkServer": {
+            "$path": "src/services/StateService/network/Server.luau"
           }
         }
       },
