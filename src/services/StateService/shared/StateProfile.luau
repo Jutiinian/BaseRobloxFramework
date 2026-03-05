@@ -15,6 +15,10 @@ local StateServiceTypes = require(script.Parent.StateServiceTypes)
 type StateData = StateServiceTypes.StateData
 type HeapManager = HeapManager.HeapManager<StateProfile>
 
+type GlobalSignal = Signal.ClassicSignal<boolean, number?, number?>
+type ActivatedSignal = Signal.ClassicSignal<number?, number?>
+type DeactivatedSignal = Signal.ClassicSignal<>
+
 local sharedHeap: HeapManager.HeapManager<StateProfile> = HeapManager.new(function(rawEntry)
 	local entry = rawEntry :: HeapManager.HeapEntry<StateProfile>
 	local self = entry.Instance
@@ -33,7 +37,7 @@ local sharedHeap: HeapManager.HeapManager<StateProfile> = HeapManager.new(functi
 	end
 
 	self._states[entry.Key] = nil
-	self:_fire(entry.Key, false)
+	self:_fireSignals(entry.Key, false)
 end)
 
 -- || Private Helper Functions || --
@@ -52,10 +56,12 @@ StateProfile.__index = StateProfile
 export type StateProfile = typeof(setmetatable(
 	{} :: {
 		_states: { [string]: StateData },
-		_signals: { [string]: Signal.ClassicSignal<any> },
+		_signals: {
+			activated: { [string]: ActivatedSignal },
+			deactivated: { [string]: DeactivatedSignal },
+			global: { [string]: GlobalSignal },
+		},
 		_janitor: Janitor.Janitor,
-
-		Changed: Signal.ClassicSignal<any>,
 	},
 	StateProfile
 ))
@@ -63,7 +69,11 @@ export type StateProfile = typeof(setmetatable(
 function StateProfile.new(): StateProfile
 	local self = setmetatable({
 		_states = {},
-		_signals = {},
+		_signals = {
+			activated = {},
+			deactivated = {},
+			global = {},
+		},
 		_janitor = Janitor.new(),
 	}, StateProfile)
 
@@ -94,7 +104,7 @@ function StateProfile.Add(self: StateProfile, stateKey: string, duration: number
 		end
 	end
 
-	-- TODO: FIre added
+	self:_fireSignals(stateKey, true)
 end
 
 function StateProfile.AddMany(self: StateProfile, map: { [string]: number | boolean })
@@ -113,7 +123,7 @@ function StateProfile.Remove(self: StateProfile, stateKey: string)
 
 	self._states[stateKey] = nil
 
-	-- TODO: Fire remove
+	self:_fireSignals(stateKey, false)
 end
 
 function StateProfile.RemoveMany(self: StateProfile, keys: { string })
@@ -201,12 +211,150 @@ function StateProfile.Resume(self: StateProfile, stateKey: string)
 	sharedHeap:ScheduleNext()
 end
 
+function StateProfile.Observe(
+	self: StateProfile,
+	stateKey: string,
+	callback: StateServiceTypes.ObserveCallback
+): StateServiceTypes.Disconnect
+	local cleanUp: StateServiceTypes.Disconnect? = nil
+
+	task.spawn(function()
+		local state = self._states[stateKey]
+		local active = state ~= nil
+
+		local stateDuration = if active and state then state.Duration else nil
+		local timeRemaining = if active and state then _getRemaining(state) else nil
+
+		local result = callback(active, timeRemaining, stateDuration)
+		if type(result) == "function" then
+			cleanUp = result
+		end
+	end)
+
+	local signalConnection = self:_retrieveGlobalSignal(stateKey):Connect(function(active, remaining, totalDuration)
+		if cleanUp then
+			cleanUp()
+			cleanUp = nil
+		end
+
+		local result = callback(active, remaining, totalDuration)
+		if type(result) == "function" then
+			cleanUp = result
+		end
+	end)
+
+	return function()
+		signalConnection:Disconnect()
+		if cleanUp then
+			cleanUp()
+			cleanUp = nil
+		end
+	end
+end
+
+function StateProfile.ObserveMany(
+	self: StateProfile,
+	stateKeys: { string },
+	callback: StateServiceTypes.ObserveManyCallback
+): StateServiceTypes.Disconnect
+	local signalsJanitor = self._janitor:AddObject(Janitor, "Destroy")
+	local cleanUps: { [string]: StateServiceTypes.Disconnect } = {}
+
+	for _, stateKey in stateKeys do
+		task.spawn(function()
+			local state = self._states[stateKey]
+			local active = state ~= nil
+
+			local stateDuration = if active and state then state.Duration else nil
+			local timeRemaining = if active and state then _getRemaining(state) else nil
+
+			local result = callback(stateKey, active, timeRemaining, stateDuration)
+			if type(result) == "function" then
+				cleanUps[stateKey] = result
+			end
+		end)
+
+		signalsJanitor:Add(
+			self:_retrieveGlobalSignal(stateKey):Connect(function(active, remaining, totalDuration)
+				if cleanUps[stateKey] then
+					cleanUps[stateKey]()
+					cleanUps[stateKey] = nil
+				end
+
+				local result = callback(stateKey, active, remaining, totalDuration)
+				if type(result) == "function" then
+					cleanUps[stateKey] = result
+				end
+			end),
+			"Disconnect",
+			stateKey
+		)
+	end
+
+	return function()
+		signalsJanitor:Destroy()
+
+		for _, cleanUp in cleanUps do
+			cleanUp()
+		end
+
+		table.clear(cleanUps)
+	end
+end
+
+function StateProfile.OnActivated(self: StateProfile, stateKey: string): StateServiceTypes.OnActivatedSignal
+	local activatedSignals = self._signals.activated
+	if not activatedSignals[stateKey] then
+		local newSignal = Signal.new(self._janitor)
+		activatedSignals[stateKey] = newSignal
+	end
+
+	return activatedSignals[stateKey] :: any
+end
+
+function StateProfile.OnDeactivated(self: StateProfile, stateKey: string): StateServiceTypes.OnDeactivatedSignal
+	local deactivatedSignals = self._signals.deactivated
+	if not deactivatedSignals[stateKey] then
+		local newSignal = Signal.new(self._janitor)
+		deactivatedSignals[stateKey] = newSignal
+	end
+
+	return deactivatedSignals[stateKey] :: any
+end
+
 function StateProfile.Destroy(self: StateProfile)
 	self._states = nil :: any
+	self._signals = nil :: any
 	self._janitor:Destroy()
 
 	table.clear(self :: any)
 	setmetatable(self :: any, nil)
+end
+
+function StateProfile._fireSignals(self: StateProfile, stateKey: string, active: boolean)
+	local state = self._states[stateKey]
+	local duration = if active and state then state.Duration else nil
+	local timeRemaining = if active and state then _getRemaining(state) else nil
+
+	if self._signals.global[stateKey] then
+		self._signals.global[stateKey]:Fire(active, timeRemaining, duration)
+	end
+
+	if active and self._signals.activated[stateKey] then
+		self._signals.activated[stateKey]:Fire(timeRemaining, duration)
+	elseif not active and self._signals.deactivated[stateKey] then
+		self._signals.deactivated[stateKey]:Fire()
+	end
+end
+
+function StateProfile._retrieveGlobalSignal(self: StateProfile, stateKey: string): GlobalSignal
+	local globalSignals = self._signals.global
+	if not globalSignals[stateKey] then
+		local newSignal = Signal.new(self._janitor)
+		globalSignals[stateKey] = newSignal
+	end
+
+	return globalSignals[stateKey]
 end
 
 return StateProfile
