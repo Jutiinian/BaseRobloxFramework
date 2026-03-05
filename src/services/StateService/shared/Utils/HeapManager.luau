@@ -4,7 +4,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- || Dependencies || --
-local StateServiceTypes = require(ReplicatedStorage.Services.StateService.Shared.StateServiceTypes)
+local StateServiceTypes = require(ReplicatedStorage.Services.StateService.StateServiceTypes)
 
 -- || Types || --
 export type HeapEntry<T> = {
