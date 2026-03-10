@@ -255,6 +255,7 @@ function StateServiceServer.Remove(
 	self:_fireReplication("Remove", replication, object, {
 		type = "Single",
 		stateKey = stateKey,
+		object = object :: Instance,
 	})
 end
 
@@ -280,6 +281,7 @@ function StateServiceServer.RemoveMany(
 	self:_fireReplication("Remove", replication, object, {
 		type = "Many",
 		keys = keys,
+		object = object :: Instance,
 	})
 end
 

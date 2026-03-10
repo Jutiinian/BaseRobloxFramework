@@ -27,7 +27,7 @@ event AddState = {
     data: addStateData
 }
 
-type removeStateData = enum "Type" {
+type removeStateData = enum "type" {
     Single {
         object: Instance,
         stateKey: string.utf8,
