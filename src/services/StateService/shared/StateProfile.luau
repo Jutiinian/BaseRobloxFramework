@@ -15,11 +15,15 @@ local StateServiceTypes = require(script.Parent.StateServiceTypes)
 local _nextID = 0
 local _registry: { [number]: StateProfile } = setmetatable({}, { __mode = "v" }) :: any
 
-local sharedHeap: HeapManager.HeapManager<StateProfile> = HeapManager.new(function(rawEntry)
-	local entry = rawEntry :: HeapManager.HeapEntry<StateProfile>
-	local self = entry.Instance
+local sharedHeap: HeapManager.HeapManager = HeapManager.new(function(rawEntry)
+	local entry = rawEntry :: HeapManager.HeapEntry
 
-	if not self._states then
+	local self = _registry[entry.ID]
+	if self then
+		return
+	end
+
+	if self._destroyed then
 		return
 	end
 
@@ -38,7 +42,7 @@ end)
 
 -- || Types || --
 type StateData = StateServiceTypes.StateData
-type HeapManager = HeapManager.HeapManager<StateProfile>
+type HeapManager = HeapManager.HeapManager
 
 type GlobalSignal = Signal.ClassicSignal<boolean, number?, number?>
 type ActivatedSignal = Signal.ClassicSignal<number?, number?>
@@ -92,6 +96,8 @@ function StateProfile.new(): StateProfile
 
 	self.Changed = Signal.new(self._janitor)
 
+	_registry[ID] = self
+
 	return self
 end
 
@@ -106,7 +112,7 @@ function StateProfile.Add(self: StateProfile, stateKey: string, duration: number
 	if duration then
 		sharedHeap:Push({
 			ExpiresAt = state.ExpiresAt :: number,
-			Instance = self._ID,
+			ID = self._ID,
 			Key = stateKey,
 			StateRef = state,
 		})
@@ -217,7 +223,7 @@ function StateProfile.Resume(self: StateProfile, stateKey: string)
 
 	sharedHeap:Push({
 		ExpiresAt = state.ExpiresAt :: number,
-		Instance = self._ID,
+		ID = self._ID,
 		Key = stateKey,
 		StateRef = state,
 	})
