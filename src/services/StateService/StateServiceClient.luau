@@ -61,9 +61,9 @@ function StateServiceClient.Init(self: StateServiceClient)
 	end)
 
 	self._network.RemoveState.SetCallback(function(value)
-		if value.Type == "Single" then
+		if value.type == "Single" then
 			self:Remove(value.object, value.stateKey)
-		elseif value.Type == "Many" then
+		elseif value.type == "Many" then
 			self:RemoveMany(value.object, value.keys)
 		end
 	end)
