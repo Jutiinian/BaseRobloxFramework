@@ -54,7 +54,7 @@ function StateServiceClient.Init(self: StateServiceClient)
 
 	self._network.AddState.SetCallback(function(value)
 		if value.type == "Single" then
-			self:Add(value.object, value.stateKey)
+			self:Add(value.object, value.stateKey, value.duration)
 		elseif value.type == "Many" then
 			self:AddMany(value.object, value.map)
 		end
