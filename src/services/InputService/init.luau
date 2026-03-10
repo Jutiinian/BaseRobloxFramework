@@ -6,7 +6,7 @@
 	input consumption model, and a reference-counted context stack.
 
     @authoer Jutiinian
-	@version Jaanuaary 12, 2026
+	@version January 12, 2026
 ]]
 
 --!optimize 2
@@ -76,17 +76,14 @@ export type ActionConfig = {
 	            HoldPressed and HoldCancelled are not routed through Triggered.
 ]]
 export type ActionSignals = {
-	Began: Signal.Signal<Input>,
-	Ended: Signal.Signal<Input>,
-	Triggered: Signal.Signal<"Began" | "Ended", Input>,
-	HoldPressed: Signal.Signal<Input>,
-	HoldCancelled: Signal.Signal<Input>,
+	Began: Signal.ClassicSignal<Input>,
+	Ended: Signal.ClassicSignal<Input>,
+	Triggered: Signal.ClassicSignal<"Began" | "Ended", Input>,
+	HoldPressed: Signal.ClassicSignal<Input>,
+	HoldCancelled: Signal.ClassicSignal<Input>,
 }
 
--- ============================================================
 -- || Public API || --
--- ============================================================
-
 local InputService = {
 	_initialized = false,
 	_actions = {} :: { [string]: ActionConfig },
@@ -103,10 +100,7 @@ local InputService = {
 
 export type InputService = typeof(InputService)
 
--- ============================================================
--- || Private Helpers
--- ============================================================
-
+-- || Private Functions || --
 local function _isContextActive(self: InputService, context: string): boolean
 	return (self._contextStack[context] or 0) > 0
 end
@@ -116,7 +110,7 @@ local function _getOrCreateSignals(self: InputService, actionName: string): Acti
 		self._signals[actionName] = {
 			Began = Signal.new(),
 			Ended = Signal.new(),
-			Triggered = Signal.new(),
+			Triggered = Signal.new() :: Signal.ClassicSignal<"Began" | "Ended", Input>,
 			HoldPressed = Signal.new(),
 			HoldCancelled = Signal.new(),
 		}
@@ -290,10 +284,6 @@ local function _processInputEnded(self: InputService, key: Input)
 	end
 end
 
--- ============================================================
--- || Lifecycle
--- ============================================================
-
 --[[
 	Initializes the InputService by connecting input events.
 
@@ -335,10 +325,6 @@ function InputService.Init(self: InputService)
 		_processInputEnded(self, key)
 	end)
 end
-
--- ============================================================
--- || Context Stack
--- ============================================================
 
 --[[
 	Pushes a context onto the stack, enabling it.
@@ -431,10 +417,6 @@ function InputService.GetActiveContexts(self: InputService): { string }
 	end
 	return result
 end
-
--- ============================================================
--- || Action Binding
--- ============================================================
 
 --[[
 	Binds one or more keys to a named action.
@@ -587,10 +569,6 @@ function InputService.RebindAction(self: InputService, actionName: string, newKe
 	end
 end
 
--- ============================================================
--- || Signals
--- ============================================================
-
 --[[
 	Returns a Signal that fires when the specified action activates.
 
@@ -616,7 +594,7 @@ end
 
 	Note: Throws if the action does not exist.
 ]]
-function InputService.GetActionBegan(self: InputService, actionName: string): Signal.Signal<Input>
+function InputService.GetActionBegan(self: InputService, actionName: string): Signal.ClassicSignal<Input>
 	assert(self._actions[actionName], `InputService.GetActionBegan: "{actionName}" does not exist.`)
 	return _getOrCreateSignals(self, actionName).Began
 end
@@ -639,7 +617,7 @@ end
 
 	Note: Throws if the action does not exist.
 ]]
-function InputService.GetActionEnded(self: InputService, actionName: string): Signal.Signal<Input>
+function InputService.GetActionEnded(self: InputService, actionName: string): Signal.ClassicSignal<Input>
 	assert(self._actions[actionName], `InputService.GetActionEnded: "{actionName}" does not exist.`)
 	return _getOrCreateSignals(self, actionName).Ended
 end
@@ -665,7 +643,7 @@ end
 
 	Note: Throws if the action does not exist.
 ]]
-function InputService.GetActionTriggered(self: InputService, actionName: string): Signal.Signal<"Began" | "Ended", Input>
+function InputService.GetActionTriggered(self: InputService, actionName: string): Signal.ClassicSignal<"Began" | "Ended", Input>
 	assert(self._actions[actionName], `InputService.GetActionTriggered: "{actionName}" does not exist.`)
 	return _getOrCreateSignals(self, actionName).Triggered
 end
@@ -703,7 +681,7 @@ end
 
 	Note: Throws if the action does not exist.
 ]]
-function InputService.GetHoldPressedSignal(self: InputService, actionName: string): Signal.Signal<Input>
+function InputService.GetHoldPressedSignal(self: InputService, actionName: string): Signal.ClassicSignal<Input>
 	assert(self._actions[actionName], `InputService.GetHoldPressedSignal: "{actionName}" does not exist.`)
 	return _getOrCreateSignals(self, actionName).HoldPressed
 end
@@ -731,14 +709,10 @@ end
 
 	Note: Throws if the action does not exist.
 ]]
-function InputService.GetHoldCancelledSignal(self: InputService, actionName: string): Signal.Signal<Input>
+function InputService.GetHoldCancelledSignal(self: InputService, actionName: string): Signal.ClassicSignal<Input>
 	assert(self._actions[actionName], `InputService.GetHoldCancelledSignal: "{actionName}" does not exist.`)
 	return _getOrCreateSignals(self, actionName).HoldCancelled
 end
-
--- ============================================================
--- || State Queries
--- ============================================================
 
 --[[
 	Returns whether the specified action is currently active.
