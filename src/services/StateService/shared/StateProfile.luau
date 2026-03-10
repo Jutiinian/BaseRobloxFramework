@@ -19,7 +19,7 @@ local sharedHeap: HeapManager.HeapManager = HeapManager.new(function(rawEntry)
 	local entry = rawEntry :: HeapManager.HeapEntry
 
 	local self = _registry[entry.ID]
-	if self then
+	if not self then
 		return
 	end
 
