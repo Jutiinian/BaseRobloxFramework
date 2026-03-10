@@ -295,6 +295,10 @@ function StateProfile.ObserveMany(
 
 	for _, stateKey in stateKeys do
 		task.spawn(function()
+			if self._destroyed then
+				return
+			end
+
 			local state = self._states[stateKey]
 			local active = state ~= nil
 
