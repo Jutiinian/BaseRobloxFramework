@@ -189,7 +189,7 @@ const tree = {
       },
     },
 
-    ServerStroage: {
+    ServerStorage: {
       $className: "ServerStorage",
 
       Assets: {
