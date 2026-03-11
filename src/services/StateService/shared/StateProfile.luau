@@ -12,18 +12,18 @@ local HeapManager = require(script.Parent.Utils.HeapManager)
 local StateServiceTypes = require(script.Parent.StateServiceTypes)
 
 -- || Constants/Variables || --
-type StateData = StateServiceTypes.StateData
-type HeapManager = HeapManager.HeapManager<StateProfile>
+local _nextID = 0
+local _registry: { [number]: StateProfile } = setmetatable({}, { __mode = "v" }) :: any
 
-type GlobalSignal = Signal.ClassicSignal<boolean, number?, number?>
-type ActivatedSignal = Signal.ClassicSignal<number?, number?>
-type DeactivatedSignal = Signal.ClassicSignal<>
+local sharedHeap: HeapManager.HeapManager = HeapManager.new(function(rawEntry)
+	local entry = rawEntry :: HeapManager.HeapEntry
 
-local sharedHeap: HeapManager.HeapManager<StateProfile> = HeapManager.new(function(rawEntry)
-	local entry = rawEntry :: HeapManager.HeapEntry<StateProfile>
-	local self = entry.Instance
+	local self = _registry[entry.ID]
+	if not self then
+		return
+	end
 
-	if not self._states then
+	if self._destroyed then
 		return
 	end
 
@@ -40,6 +40,14 @@ local sharedHeap: HeapManager.HeapManager<StateProfile> = HeapManager.new(functi
 	self:_fireSignals(entry.Key, false)
 end)
 
+-- || Types || --
+type StateData = StateServiceTypes.StateData
+type HeapManager = HeapManager.HeapManager
+
+type GlobalSignal = Signal.ClassicSignal<boolean, number?, number?>
+type ActivatedSignal = Signal.ClassicSignal<number?, number?>
+type DeactivatedSignal = Signal.ClassicSignal<>
+
 -- || Private Helper Functions || --
 local function _getRemaining(state: StateData): number?
 	if not state.ExpiresAt then
@@ -55,6 +63,7 @@ StateProfile.__index = StateProfile
 
 export type StateProfile = typeof(setmetatable(
 	{} :: {
+		_ID: number,
 		_states: { [string]: StateData },
 		_signals: {
 			activated: { [string]: ActivatedSignal },
@@ -62,12 +71,18 @@ export type StateProfile = typeof(setmetatable(
 			global: { [string]: GlobalSignal },
 		},
 		_janitor: Janitor.Janitor,
+		_nextObserveID: number,
+		_destroyed: boolean,
 	},
 	StateProfile
 ))
 
 function StateProfile.new(): StateProfile
+	_nextID += 1
+	local ID = _nextID
+
 	local self = setmetatable({
+		_ID = ID,
 		_states = {},
 		_signals = {
 			activated = {},
@@ -75,9 +90,13 @@ function StateProfile.new(): StateProfile
 			global = {},
 		},
 		_janitor = Janitor.new(),
+		_nextObserveID = 0,
+		_destroyed = false,
 	}, StateProfile)
 
 	self.Changed = Signal.new(self._janitor)
+
+	_registry[ID] = self
 
 	return self
 end
@@ -93,7 +112,7 @@ function StateProfile.Add(self: StateProfile, stateKey: string, duration: number
 	if duration then
 		sharedHeap:Push({
 			ExpiresAt = state.ExpiresAt :: number,
-			Instance = self,
+			ID = self._ID,
 			Key = stateKey,
 			StateRef = state,
 		})
@@ -204,7 +223,7 @@ function StateProfile.Resume(self: StateProfile, stateKey: string)
 
 	sharedHeap:Push({
 		ExpiresAt = state.ExpiresAt :: number,
-		Instance = self,
+		ID = self._ID,
 		Key = stateKey,
 		StateRef = state,
 	})
@@ -219,6 +238,10 @@ function StateProfile.Observe(
 	local cleanUp: StateServiceTypes.Disconnect? = nil
 
 	task.spawn(function()
+		if self._destroyed then
+			return
+		end
+
 		local state = self._states[stateKey]
 		local active = state ~= nil
 
@@ -243,13 +266,23 @@ function StateProfile.Observe(
 		end
 	end)
 
-	return function()
+	self._nextObserveID += 1
+	local observeKey = "observe_" .. self._nextObserveID
+
+	local function disconnect()
+		if not self._destroyed then
+			self._janitor:RemoveNoClean(observeKey)
+		end
+
 		signalConnection:Disconnect()
 		if cleanUp then
 			cleanUp()
 			cleanUp = nil
 		end
 	end
+
+	self._janitor:Add(disconnect, true, observeKey)
+	return disconnect
 end
 
 function StateProfile.ObserveMany(
@@ -257,11 +290,15 @@ function StateProfile.ObserveMany(
 	stateKeys: { string },
 	callback: StateServiceTypes.ObserveManyCallback
 ): StateServiceTypes.Disconnect
-	local signalsJanitor = self._janitor:AddObject(Janitor, "Destroy")
+	local signalsJanitor = Janitor.new()
 	local cleanUps: { [string]: StateServiceTypes.Disconnect } = {}
 
 	for _, stateKey in stateKeys do
 		task.spawn(function()
+			if self._destroyed then
+				return
+			end
+
 			local state = self._states[stateKey]
 			local active = state ~= nil
 
@@ -291,7 +328,14 @@ function StateProfile.ObserveMany(
 		)
 	end
 
-	return function()
+	self._nextObserveID += 1
+	local observeKey = "observe_" .. self._nextObserveID
+
+	local function disconnect()
+		if not self._destroyed then
+			self._janitor:RemoveNoClean(observeKey)
+		end
+
 		signalsJanitor:Destroy()
 
 		for _, cleanUp in cleanUps do
@@ -300,6 +344,9 @@ function StateProfile.ObserveMany(
 
 		table.clear(cleanUps)
 	end
+
+	self._janitor:Add(disconnect, true, observeKey)
+	return disconnect
 end
 
 function StateProfile.OnActivated(self: StateProfile, stateKey: string): StateServiceTypes.OnActivatedSignal
@@ -323,6 +370,8 @@ function StateProfile.OnDeactivated(self: StateProfile, stateKey: string): State
 end
 
 function StateProfile.Destroy(self: StateProfile)
+	self._destroyed = true
+
 	self._states = nil :: any
 	self._signals = nil :: any
 	self._janitor:Destroy()

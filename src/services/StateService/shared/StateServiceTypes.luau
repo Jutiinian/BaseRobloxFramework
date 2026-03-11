@@ -14,8 +14,8 @@ export type StateData = {
 export type Object = Player | Instance
 
 export type Disconnect = () -> ()
-export type ObserveCallback = (active: boolean, remaining: number?, totalDuration: number?) -> Disconnect
-export type ObserveManyCallback = (stateKey: string, active: boolean, remaining: number?, totalDuration: number?) -> Disconnect
+export type ObserveCallback = (active: boolean, remaining: number?, totalDuration: number?) -> Disconnect?
+export type ObserveManyCallback = (stateKey: string, active: boolean, remaining: number?, totalDuration: number?) -> Disconnect?
 
 export type ReadOnlySignal<T...> = {
 	Connect: (self: ReadOnlySignal<T...>, callback: (T...) -> ()) -> Signal.Connection,

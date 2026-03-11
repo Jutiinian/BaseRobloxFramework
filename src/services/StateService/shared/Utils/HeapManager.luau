@@ -7,39 +7,39 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StateServiceTypes = require(ReplicatedStorage.Services.StateService.StateServiceTypes)
 
 -- || Types || --
-export type HeapEntry<T> = {
+export type HeapEntry = {
 	ExpiresAt: number,
-	Instance: T,
+	ID: number,
 	Key: string,
 	StateRef: StateServiceTypes.StateData,
 }
 
-type OnExpiredCallback<T> = (entry: HeapEntry<T>) -> ()
+type OnExpiredCallback = (entry: HeapEntry) -> ()
 
 -- || Public API || --
 local HeapManager = {}
 HeapManager.__index = HeapManager
 
-export type HeapManager<T> = typeof(setmetatable(
+export type HeapManager = typeof(setmetatable(
 	{} :: {
-		_heap: { HeapEntry<T> },
+		_heap: { HeapEntry },
 		_heapSize: number,
 		_schedulerThread: thread?,
-		_onExpired: OnExpiredCallback<T>,
+		_onExpired: OnExpiredCallback,
 	},
 	HeapManager
 ))
 
-function HeapManager.new<T>(onExpired: OnExpiredCallback<T>): HeapManager<T>
+function HeapManager.new(onExpired: OnExpiredCallback): HeapManager
 	return setmetatable({
-		_heap = {} :: { HeapEntry<T> },
+		_heap = {} :: { HeapEntry },
 		_heapSize = 0,
 		_schedulerThread = nil,
 		_onExpired = onExpired,
 	}, HeapManager) :: any
 end
 
-function HeapManager.Push<T>(self: HeapManager<T>, entry: HeapEntry<T>)
+function HeapManager.Push(self: HeapManager, entry: HeapEntry)
 	self._heapSize += 1
 	self._heap[self._heapSize] = entry
 
@@ -55,7 +55,7 @@ function HeapManager.Push<T>(self: HeapManager<T>, entry: HeapEntry<T>)
 	end
 end
 
-function HeapManager.Pop<T>(self: HeapManager<T>): HeapEntry<T>?
+function HeapManager.Pop(self: HeapManager): HeapEntry?
 	if self._heapSize == 0 then
 		return nil
 	end
@@ -91,11 +91,11 @@ function HeapManager.Pop<T>(self: HeapManager<T>): HeapEntry<T>?
 	return top
 end
 
-function HeapManager.Peek<T>(self: HeapManager<T>): HeapEntry<T>?
+function HeapManager.Peek(self: HeapManager): HeapEntry?
 	return if self._heapSize > 0 then self._heap[1] else nil
 end
 
-function HeapManager.ScheduleNext<T>(self: HeapManager<T>)
+function HeapManager.ScheduleNext(self: HeapManager)
 	if self._schedulerThread then
 		task.cancel(self._schedulerThread)
 		self._schedulerThread = nil
@@ -111,7 +111,7 @@ function HeapManager.ScheduleNext<T>(self: HeapManager<T>)
 	end)
 end
 
-function HeapManager._drainHeap<T>(self: HeapManager<T>)
+function HeapManager._drainHeap(self: HeapManager)
 	self._schedulerThread = nil
 	local now = os.clock()
 
