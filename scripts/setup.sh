@@ -5,9 +5,9 @@
 #
 # Step order:
 #   1. Install Rokit tools
-#   2. Generate Rojo project tree  (default.project.json)
-#   3. Process .zap remotes        (network remote code)
-#   4. Install Wally packages      (Packages/, ServerPackages/)
+#   2. Process .zap remotes        (network remote code)
+#   3. Install Wally packages      (Packages/, ServerPackages/)
+#   4. Generate Rojo project tree  (default.project.json)
 #   5. Generate sourcemap          (sourcemap.json)
 #   6. Generate type definitions
 #
@@ -103,20 +103,21 @@ ${BOLD}setup.sh${RESET} — Full project setup
 
 ${BOLD}STEPS (always run in this order)${RESET}
     1. Install Rokit tools
-    2. Generate Rojo project tree   →  default.project.json
+    2. Configure git hooks          →  .githooks/
     3. Process .zap remotes         →  network remote code
     4. Install Wally packages       →  Packages/ ServerPackages/
-    5. Generate Rojo sourcemap      →  sourcemap.json
-    6. Generate type definitions
+    5. Generate Rojo project tree   →  default.project.json
+    6. Generate Rojo sourcemap      →  sourcemap.json
+    7. Generate type definitions
 
 ${BOLD}USAGE${RESET}
     sh scripts/setup.sh [OPTIONS]
 
 ${BOLD}OPTIONS${RESET}
     --clean           Remove Packages/, ServerPackages/, sourcemap.json first
-    --skip-remotes    Skip .zap processing (step 3)
-    --skip-types      Skip type definition generation (step 6)
-    --skip-tree       Skip tree generation (step 2) — reuse default.project.json
+    --skip-remotes    Skip .zap processing (step 4)
+    --skip-types      Skip type definition generation (step 7)
+    --skip-tree       Skip tree generation (step 5) — reuse default.project.json
     --help, -h        Show this help
 
 ${BOLD}EXAMPLES${RESET}
@@ -194,28 +195,26 @@ if command_exists rokit && [ -f "rokit.toml" ]; then
 fi
 
 # ─────────────────────────────────────────────────────────────
-# Step 2 — Generate Rojo project tree
+# Step 2 — Git Hooks
 # ─────────────────────────────────────────────────────────────
-print_header "Step 2 — Rojo Project Tree"
+print_header "Step 2 — Git Hooks"
 
-if [ "$SKIP_TREE" = "true" ]; then
-    if [ ! -f "default.project.json" ]; then
-        print_error "--skip-tree was set but default.project.json does not exist"
-        exit 1
-    fi
-    print_info "Skipping tree generation (--skip-tree)"
+if [ ! -d ".git" ]; then
+    print_warning "Not a git repository — skipping hook setup"
+elif [ ! -d ".githooks" ]; then
+    print_warning ".githooks directory not found — skipping hook setup"
 else
-    if node scripts/generateRojoTree.js; then
-        print_success "default.project.json generated"
+    if git config core.hooksPath .githooks; then
+        print_success "Git hooks configured (.githooks/)"
     else
-        print_error "Tree generation failed"
-        exit 1
+        print_warning "Failed to configure git hooks"
     fi
 fi
 
 # ─────────────────────────────────────────────────────────────
 # Step 3 — Process .zap remotes
 # ─────────────────────────────────────────────────────────────
+# Remotes before tree — zap generates files the tree walk may depend on
 print_header "Step 3 — Remotes"
 
 if [ "$SKIP_REMOTES" = "true" ]; then
@@ -245,9 +244,29 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────
-# Step 5 — Generate sourcemap
+# Step 5 — Generate Rojo project tree
 # ─────────────────────────────────────────────────────────────
-print_header "Step 5 — Sourcemap"
+print_header "Step 5 — Rojo Project Tree"
+
+if [ "$SKIP_TREE" = "true" ]; then
+    if [ ! -f "default.project.json" ]; then
+        print_error "--skip-tree was set but default.project.json does not exist"
+        exit 1
+    fi
+    print_info "Skipping tree generation (--skip-tree)"
+else
+    if node scripts/generateRojoTree.js; then
+        print_success "default.project.json generated"
+    else
+        print_error "Tree generation failed"
+        exit 1
+    fi
+fi
+
+# ─────────────────────────────────────────────────────────────
+# Step 6 — Generate sourcemap
+# ─────────────────────────────────────────────────────────────
+print_header "Step 6 — Sourcemap"
 
 if rojo sourcemap default.project.json --output sourcemap.json; then
     print_success "sourcemap.json generated"
@@ -257,9 +276,9 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────
-# Step 6 — Type definitions
+# Step 7 — Type definitions
 # ─────────────────────────────────────────────────────────────
-print_header "Step 6 — Type Definitions"
+print_header "Step 7 — Type Definitions"
 
 if [ "$SKIP_TYPES" = "true" ]; then
     print_info "Skipping type generation (--skip-types)"
