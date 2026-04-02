@@ -180,7 +180,7 @@ end
 	If the callback returns false, the message is not processed further.
 
 	@param key string
-	@param cb (player: Player, data: { any }) -> boolean?
+	@param callback (player: Player, data: { any }) -> boolean?
 
 	Example:
 	```lua
@@ -190,9 +190,9 @@ end
 	end)
 	```
 ]]
-function DataServiceServer.AddGlobalCallback(self: DataServiceServer, key: string, cb: (player: Player, { any }) -> boolean?): ()
+function DataServiceServer.AddGlobalCallback(self: DataServiceServer, key: string, callback: (player: Player, { any }) -> boolean?): ()
 	assert(self._globalCallbacks[key] == nil, "Global callback already exists for key: " .. key)
-	self._globalCallbacks[key] = cb
+	self._globalCallbacks[key] = callback
 	self._globalCallbackAdded:Fire(key)
 end
 
@@ -219,7 +219,7 @@ end
 	disconnect()
 	```
 ]=]
-function DataServiceServer.AddPlayerRemovingCallback(self: DataServiceServer, fn: (player: Player, data: any) -> ()): () -> ()
+function DataServiceServer.AddPlayerRemovingCallback(self: DataServiceServer, fn: (player: Player, data: DataTemplate.Data) -> ()): () -> ()
 	table.insert(self._removalFunctions, fn)
 	return function()
 		local index = table.find(self._removalFunctions, fn)
