@@ -196,6 +196,39 @@ function DataServiceServer.AddGlobalCallback(self: DataServiceServer, key: strin
 	self._globalCallbackAdded:Fire(key)
 end
 
+--[=[
+	Add any number of functions to be called when a player is removed.
+	Used to perform cleanup or save data before the player leaves.
+	
+	@param fn (player: Player, data: any) -> ()
+
+	Example:
+	```lua
+	DataService:AddPlayerRemovingCallback(function(player: Player, data: any): ()
+		print(player.Name .. " is leaving with data:", data)
+		-- Perform any cleanup or save operations here
+	end)
+	```
+
+	```lua
+	local disconnect = DataService:AddPlayerRemovingCallback(function(player: Player, data: any): ()
+		data.currency = 0
+	end)
+
+	-- Later, you can disconnect this function if needed
+	disconnect()
+	```
+]=]
+function DataServiceServer.AddPlayerRemovingCallback(self: DataServiceServer, fn: (player: Player, data: any) -> ()): () -> ()
+	table.insert(self._removalFunctions, fn)
+	return function()
+		local index = table.find(self._removalFunctions, fn)
+		if index then
+			table.remove(self._removalFunctions, index)
+		end
+	end
+end
+
 --[[
 	Gets the currently loaded ProfileStore profile for a player.
 	
