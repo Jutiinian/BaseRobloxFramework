@@ -2,7 +2,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- || Dependencies || --
-local Signal = require(ReplicatedStorage.Packages.Signal)
+local Signal = require(ReplicatedStorage.Packages.signal)
 
 -- || Public API || --
 local ObjectPool = {}
@@ -12,11 +12,11 @@ export type ObjectPool<T> = typeof(setmetatable(
 	{} :: {
 		_createFunc: () -> T,
 		_pool: { T },
-		_acitve: { T },
+		_active: { T },
 		_indexMap: { [T]: boolean },
 
-		OnObjectReturned: Signal.Signal<T>,
-		OnObjectCheckedOut: Signal.Signal<T>,
+		OnObjectReturned: Signal.ClassicSignal<T>,
+		OnObjectCheckedOut: Signal.ClassicSignal<T>,
 	},
 	ObjectPool
 ))
@@ -61,7 +61,7 @@ function ObjectPool.Get<T>(self: ObjectPool<T>): T
 		object = self._createFunc()
 	end
 
-	table.insert(self._acitve, object)
+	table.insert(self._active, object)
 	self._indexMap[object] = true
 
 	self.OnObjectCheckedOut:Fire(object)
@@ -86,9 +86,9 @@ function ObjectPool.Return<T>(self: ObjectPool<T>, object: T)
 
 	self._indexMap[object] = false
 
-	for i = #self._acitve, 1, -1 do
-		if self._acitve[i] == object then
-			table.remove(self._acitve, i)
+	for i = #self._active, 1, -1 do
+		if self._active[i] == object then
+			table.remove(self._active, i)
 			break
 		end
 	end
@@ -126,7 +126,7 @@ function ObjectPool.Clear<T>(self: ObjectPool<T>, destroyInstances: boolean?)
 			end
 		end
 
-		for _, object in ipairs(self._acitve) do
+		for _, object in ipairs(self._active) do
 			if object.Destroy then
 				object:Destroy()
 			end
@@ -134,7 +134,7 @@ function ObjectPool.Clear<T>(self: ObjectPool<T>, destroyInstances: boolean?)
 	end
 
 	self._pool = {}
-	self._acitve = {}
+	self._active = {}
 	self._indexMap = {}
 end
 
